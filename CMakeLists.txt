@@ -50,6 +50,8 @@ option(BUILD_EXAMPLE_CIRCLES_SPATIAL_3D "Enable building examples/circles_spatia
 option(BUILD_EXAMPLE_GAME_OF_LIFE "Enable building examples/game_of_life" OFF)
 option(BUILD_EXAMPLE_HOST_FUNCTIONS "Enable building examples/host_functions" OFF)
 option(BUILD_EXAMPLE_RTC_EXAMPLE "Enable building examples/rtc_example" OFF)
+option(BUILD_EXAMPLE_STABLE_MATCHING "Enable building examples/stable_matching" OFF)
+
 option(BUILD_SWIG_PYTHON "Enable python bindings via SWIG" OFF)
 cmake_dependent_option(BUILD_SWIG_PYTHON_VIRTUALENV "Enable building of SWIG Python Virtual Env for Python Testing" OFF
                        "BUILD_SWIG_PYTHON" OFF)
@@ -130,6 +132,11 @@ endif()
 if(BUILD_ALL_EXAMPLES OR BUILD_EXAMPLE_GAME_OF_LIFE)
     add_subdirectory(examples/game_of_life)
 endif()
+
+if(BUILD_ALL_EXAMPLES OR BUILD_EXAMPLE_STABLE_MATCHING)
+    add_subdirectory(examples/stable_matching)
+endif()
+
 # Add the tests directory (if required)
 if(BUILD_TESTS)
     add_subdirectory(tests)
