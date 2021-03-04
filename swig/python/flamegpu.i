@@ -344,8 +344,10 @@ namespace EnvironmentManager{
 
 //%include "flamegpu/runtime/DeviceAPI.h"
 %ignore VarOffsetStruct; // not required but defined in HostNewAgentAPI
+%feature("valuewrapper") DeviceAgentVector;
 %include "flamegpu/runtime/HostAPI.h"
 %include "flamegpu/runtime/HostNewAgentAPI.h"
+%include "flamegpu/pop/DeviceAgentVector.h"
 
 %include "flamegpu/runtime/HostAgentAPI.h"
 /* Extend HostAgentAPI to add a templated version of the sum function (with differing return type) with a different name so this can be instantiated */
