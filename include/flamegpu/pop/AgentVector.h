@@ -13,6 +13,7 @@ class AgentInstance;
 class AgentDescription;
 class AgentVector_CAgent;
 class AgentVector_Agent;
+struct AgentData;
 
 class AgentVector {
     /**
@@ -143,6 +144,7 @@ class AgentVector {
      * @param count The size of the container
      */
     explicit AgentVector(const AgentDescription &agent_desc, size_type count = 0);
+    explicit AgentVector(const AgentData &agent_desc, size_type count = 0);
     /**
      * Copy constructor.
      * Constructs the container with the copy of the contents of other
@@ -167,6 +169,10 @@ class AgentVector {
      * other is left in an empty but functional state.
      */
     AgentVector& operator=(AgentVector &&other) noexcept;
+    /**
+     * Default destructor, all memory should be automatically managed.
+     */
+    virtual ~AgentVector() = default;
 
     // Element access
     /**
@@ -445,12 +451,20 @@ class AgentVector {
      */
     std::string getInitialState() const;
 
- private:
+ protected:
     /**
      * Resizes the internal vector
      * Note, this version only updates _capacity, _size remains unchanged.
      */
     void resize(size_type count, bool init);
+    /**
+     * Overwrite all variable buffers in the specified range with default values
+     * @param first Index to first index to overwrite
+     * @param last Index after the last index to overwrite
+     * @throws InvalidOperation When last<first
+     * @throws OutOfBoundsException when last > _capacity
+     */
+    void init(size_type first, size_type last);
     std::shared_ptr<const AgentData> agent;
     size_type _size;
     size_type _capacity;

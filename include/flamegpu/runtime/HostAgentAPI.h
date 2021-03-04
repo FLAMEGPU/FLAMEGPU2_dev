@@ -28,6 +28,7 @@
 #include "flamegpu/runtime/HostAPI.h"
 #include "flamegpu/gpu/CUDASimulation.h"
 #include "flamegpu/gpu/CUDAAgent.h"
+#include "flamegpu/pop/DeviceAgentVector.h"
 
 #define FLAMEGPU_CUSTOM_REDUCTION(funcName, a, b)\
 struct funcName ## _impl {\
@@ -55,11 +56,12 @@ __device__ __forceinline__ OutT funcName ## _impl::unary_function<InT, OutT>::op
 
 class HostAgentAPI {
  public:
-    HostAgentAPI(HostAPI &_api, AgentInterface &_agent, const std::string &_stateName = "default")
-        : api(_api),
-        agent(_agent),
-        hasState(true),
-        stateName(_stateName) { }
+    HostAgentAPI(HostAPI &_api, AgentInterface &_agent, const std::string &_stateName)
+        : api(_api)
+        , agent(_agent)
+        , hasState(true)
+        , stateName(_stateName)
+        { }
     /*
      * Returns the number of agents in this state
      */
@@ -189,6 +191,22 @@ class HostAgentAPI {
      */
     template<typename Var1T, typename Var2T>
     void sort(const std::string &variable1, Order order1, const std::string &variable2, Order order2);
+    /**
+     * Downloads the current agent state from device into an AgentVector which is returned
+     *
+     * This function is considered expensive, as it triggers a high number of host-device memory transfers.
+     * It should be used as a last resort
+     */
+    DeviceAgentVector getPopulationData();
+    /**
+     * Replaces the current agent state on the device with the provided agent vector
+     *
+     * This function is considered expensive, as it triggers a high number of device-host memory transfers.
+     *
+     * @param pop The agent data to overwrite the current agent state with
+     * @throws InvalidAgentData if the AgentVector's agent description does not match that held by this instance of HostAgentAPI
+     */
+    void setPopulationData(DeviceAgentVector&pop);
 
  private:
     /**

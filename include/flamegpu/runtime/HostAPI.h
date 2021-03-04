@@ -14,6 +14,7 @@
 #include "flamegpu/runtime/HostAPI_macros.h"
 #include "flamegpu/runtime/HostNewAgentAPI.h"
 
+class CUDAScatter;
 class CUDASimulation;
 class HostAgentAPI;
 
@@ -40,9 +41,12 @@ class HostAPI {
      * Stores reference of CUDASimulation
      */
      explicit HostAPI(CUDASimulation&_agentModel,
-        RandomManager &rng,
-         const AgentOffsetMap &agentOffsets,
-         AgentDataMap &agentData);
+          RandomManager &rng,
+          CUDAScatter &scatter,
+          const AgentOffsetMap &agentOffsets,
+          AgentDataMap &agentData,
+          const unsigned int &streamId,
+         cudaStream_t stream);
     /**
      * Frees held device memory
      */
@@ -127,6 +131,18 @@ class HostAPI {
      * when new agents are copied to device.
      */
     AgentDataMap &agentData;
+    /**
+     * Cuda scatter singleton
+     */
+    CUDAScatter &scatter;
+    /**
+     * Stream index for stream-specific resources
+     */
+    const unsigned int streamId;
+    /**
+     * CUDA stream object for CUDA operations
+     */
+    cudaStream_t stream;
 };
 
 template<typename T>

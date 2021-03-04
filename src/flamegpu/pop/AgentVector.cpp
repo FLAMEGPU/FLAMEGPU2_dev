@@ -11,7 +11,9 @@
 const float AgentVector::RESIZE_FACTOR = 1.5f;
 
 AgentVector::AgentVector(const AgentDescription& agent_desc, size_type count)
-    : agent(agent_desc.agent->clone())
+    : AgentVector(*agent_desc.agent, count) { }
+AgentVector::AgentVector(const AgentData& agent_desc, size_type count)
+    : agent(agent_desc.clone())
     , _size(0)
     , _capacity(0)
     , _data(std::make_shared<AgentDataMap>()) {
@@ -192,16 +194,29 @@ void AgentVector::shrink_to_fit() {
 void AgentVector::clear() {
     // Re initialise all variables
     if (_capacity) {
-        for (const auto& v : agent->variables) {
-            const auto it = _data->find(v.first);
-            const size_t variable_size = v.second.type_size * v.second.elements;
-            char* t_data = static_cast<char*>(it->second->getDataPtr());
-            for (unsigned int i = 0; i < _size; ++i) {
-                memcpy(t_data + i * variable_size, v.second.default_value, variable_size);
-            }
-        }
+        init(0, _size);
     }
     _size = 0;
+}
+void AgentVector::init(size_type first, size_type last) {
+    if (first >= last) {
+        THROW InvalidOperation("Last (%u) must exceed first(%u), "
+          "in AgentVector::init()\n",
+          last, first);
+    } else if (last > _capacity) {
+        THROW OutOfBoundsException("Last (%u) exceeds capacity (%u) in AgentVector::init(), "
+            "in AgentVector::init()\n",
+          last, _capacity);
+    }
+    // Re initialise all variables
+    for (const auto& v : agent->variables) {
+        const auto it = _data->find(v.first);
+        const size_t variable_size = v.second.type_size * v.second.elements;
+        char* t_data = static_cast<char*>(it->second->getDataPtr());
+        for (unsigned int i = first; i < last; ++i) {
+            memcpy(t_data + i * variable_size, v.second.default_value, variable_size);
+        }
+    }
 }
 
 AgentVector::iterator AgentVector::insert(const_iterator pos, const AgentInstance& value) {
@@ -360,11 +375,9 @@ AgentVector::iterator AgentVector::erase(size_type first, size_type last) {
             // Copy items individually, incase the src and destination overlap
             memcpy(t_data + (i - erase_count) * variable_size, t_data + i * variable_size, variable_size);
         }
-        // Initialise newly empty variables
-        for (unsigned int i = first_empty_index; i < last_empty_index; ++i) {
-            memcpy(t_data + i * variable_size, v.second.default_value, variable_size);
-        }
     }
+    // Initialise newly empty variables
+    init(first_empty_index, last_empty_index);
     // Decrease size
     _size -= erase_count;
     // Return iterator following the last removed element
@@ -423,16 +436,14 @@ void AgentVector::resize(size_type count, bool init) {
         } else {
             // Need to resize the variables vector
             it->second->resize(count);
-            // Default init all new elements
-            if (init) {
-                char* t_data = static_cast<char*>(it->second->getDataPtr());
-                for (unsigned int i = _capacity; i < count; ++i) {
-                    memcpy(t_data + i * variable_size, v.second.default_value, variable_size);
-                }
-            }
         }
     }
+    size_type old_capacity = _capacity;
     _capacity = count;
+    // Default init all new elements
+    if (init && count > old_capacity) {
+        this->init(old_capacity, _capacity);
+    }
 }
 void AgentVector::swap(AgentVector& other) noexcept {
     std::swap(_data, other._data);

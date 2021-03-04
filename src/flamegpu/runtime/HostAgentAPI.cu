@@ -23,3 +23,12 @@ void HostAgentAPI::sortBuffer(void *dest, void*src, unsigned int *position, cons
     sortBuffer_kernel<<<(threadCount/512)+1, 512, 0, stream >>>(static_cast<char*>(dest), static_cast<char*>(src), position, typeLen, threadCount);
     gpuErrchkLaunch();
 }
+
+DeviceAgentVector HostAgentAPI::getPopulationData() {
+    // Create and return a new AgentVector
+    return DeviceAgentVector(static_cast<CUDAAgent&>(agent), stateName);
+}
+void HostAgentAPI::setPopulationData(DeviceAgentVector&pop) {
+    // Tell pop to return all changed data to the device
+    pop.syncChanges(api.scatter, api.streamId, api.stream);
+}

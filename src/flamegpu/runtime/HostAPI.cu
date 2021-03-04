@@ -6,9 +6,12 @@
 #include "flamegpu/gpu/CUDASimulation.h"
 
 HostAPI::HostAPI(CUDASimulation &_agentModel,
-    RandomManager &rng,
+    RandomManager& rng,
+    CUDAScatter &_scatter,
     const AgentOffsetMap &_agentOffsets,
-    AgentDataMap &_agentData)
+    AgentDataMap &_agentData,
+    const unsigned int& _streamId,
+    cudaStream_t _stream)
     : random(rng)
     , environment(_agentModel.getInstanceID())
     , agentModel(_agentModel)
@@ -17,7 +20,10 @@ HostAPI::HostAPI(CUDASimulation &_agentModel,
     , d_output_space(nullptr)
     , d_output_space_size(0)
     , agentOffsets(_agentOffsets)
-    , agentData(_agentData) { }
+    , agentData(_agentData)
+    , scatter(_scatter)
+    , streamId(_streamId)
+    , stream(_stream) { }
 
 HostAPI::~HostAPI() {
     // @todo - cuda is not allowed in destructor
