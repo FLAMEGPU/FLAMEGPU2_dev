@@ -257,3 +257,9 @@ void CUDAAgentStateList::clear() {
 void CUDAAgentStateList::setAgentCount(const unsigned int& newSize) {
     parent_list->setAgentCount(newSize, false);
 }
+std::list<std::shared_ptr<VariableBuffer>> CUDAAgentStateList::getUnboundVariableBuffers() {
+    std::set<std::shared_ptr<VariableBuffer>> exclusionSet;
+    for (auto& a : variables)
+        exclusionSet.insert(a.second);
+    return parent_list->getBuffers(exclusionSet);
+}

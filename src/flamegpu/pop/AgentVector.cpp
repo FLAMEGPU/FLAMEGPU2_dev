@@ -26,7 +26,7 @@ AgentVector::AgentVector(const AgentVector& other)
     , _capacity(0)
     , _data(std::make_shared<AgentDataMap>()) {
     clear();
-    *this = other;
+    *this = std::move(other);
 }
 
 AgentVector::AgentVector(AgentVector&& other) noexcept
@@ -272,6 +272,8 @@ AgentVector::iterator AgentVector::insert(size_type pos, size_type count, const 
     }
     // Increase size
     _size += count;
+    // Notify subclasses
+    _insert(pos, count);
     // Return iterator to first inserted item
     return iterator(agent, _data, insert_index);
 }
@@ -322,6 +324,8 @@ AgentVector::iterator AgentVector::insert(size_type pos, size_type count, const 
     }
     // Increase size
     _size += count;
+    // Notify subclasses
+    _insert(pos, count);
     // Return iterator to first inserted item
     return iterator(agent, _data, insert_index);
 }
@@ -351,7 +355,7 @@ AgentVector::iterator AgentVector::erase(size_type first, size_type last) {
     if (first == last)
         return iterator(agent, _data, last);
     // Get first index;
-    const size_type first_remove_index = first< last ? first : last;
+    const size_type first_remove_index = first < last ? first : last;
     const size_type first_move_index = first < last ? last : first;
     const size_type erase_count = first_move_index - first_remove_index;
     const size_type first_empty_index = _size - erase_count;
@@ -380,6 +384,8 @@ AgentVector::iterator AgentVector::erase(size_type first, size_type last) {
     init(first_empty_index, last_empty_index);
     // Decrease size
     _size -= erase_count;
+    // Notify subclasses
+    _erase(first_remove_index, erase_count);
     // Return iterator following the last removed element
     return iterator(agent, _data, first_remove_index + 1);
 }
@@ -396,7 +402,8 @@ void AgentVector::push_back() {
         }
         resize(new_capacity, true);
     }
-    ++_size;
+    // Notify subclasses & increase size
+    _insert(_size++, 1);
 }
 void AgentVector::pop_back() {
     if (_size) {
@@ -408,11 +415,20 @@ void AgentVector::pop_back() {
             char* t_data = static_cast<char*>(it->second->getDataPtr());
             memcpy(t_data + _size * variable_size, v.second.default_value, variable_size);
         }
+        // Notify subclasses
+        _erase(_size, 1);
     }
 }
 void AgentVector::resize(size_type count) {
+    const size_type old_size = _size;
     resize(count, true);
     _size = count;
+    // Notify subclasses
+    if (count > old_size) {
+        _insert(old_size, count - old_size);
+    } else if (count < old_size) {
+        _erase(count, old_size - count);
+    }
 }
 void AgentVector::resize(size_type count, bool init) {
     if (count == _capacity)

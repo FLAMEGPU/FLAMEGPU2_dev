@@ -453,6 +453,18 @@ class AgentVector {
 
  protected:
     /**
+     * This is called after insert operations to notify sub-classes of data movement.
+     * @param pos Index in the array that first agent was inserts
+     * @param count Number of agents inserted
+     */
+    virtual void _insert(size_type pos, size_type count) { }
+    /**
+     * This is called after erase operations to notify sub-classes of data movement.
+     * @param pos Index in the array of first agent that was erased
+     * @param count Number of agents erased
+     */
+    virtual void _erase(size_type pos, size_type count) { }
+    /**
      * Resizes the internal vector
      * Note, this version only updates _capacity, _size remains unchanged.
      */
@@ -578,6 +590,8 @@ AgentVector::iterator AgentVector::insert(size_type pos, InputIt first, InputIt 
     }
     // Increase size
     _size += copy_count;
+    // Notify subclasses
+    _insert(pos, copy_count);
     // Return iterator to first inserted item
     return iterator(agent, _data, insert_index);
 }

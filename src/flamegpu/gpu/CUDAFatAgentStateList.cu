@@ -246,3 +246,12 @@ void CUDAFatAgentStateList::swap(CUDAFatAgentStateList*other) {
         (*a)->swap(b->get());
     }
 }
+std::list<std::shared_ptr<VariableBuffer>> CUDAFatAgentStateList::getBuffers(std::set<std::shared_ptr<VariableBuffer>>& exclusionSet) {
+    std::list<std::shared_ptr<VariableBuffer>> returnVars;
+    for (const auto& v : variables_unique) {
+        if (exclusionSet.find(v) == exclusionSet.end()) {
+            returnVars.push_back(v);
+        }
+    }
+    return returnVars;
+}

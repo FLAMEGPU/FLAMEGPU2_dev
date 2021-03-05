@@ -635,3 +635,13 @@ void CUDAAgent::cullAllStates() {
         s.second->clear();
     }
 }
+std::list<std::shared_ptr<VariableBuffer>> CUDAAgent::getUnboundVariableBuffers(const std::string& state) {
+    const auto& sm = state_map.find(state);
+
+    if (sm == state_map.end()) {
+        THROW InvalidCudaAgentState("Error: Agent ('%s') state ('%s') was not found, "
+            "in CUDAAgent::getUnboundVariableBuffers()",
+            agent_description.name.c_str(), state.c_str());
+    }
+    return sm->second->getUnboundVariableBuffers();
+}

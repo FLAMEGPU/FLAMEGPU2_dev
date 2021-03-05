@@ -26,9 +26,9 @@ void HostAgentAPI::sortBuffer(void *dest, void*src, unsigned int *position, cons
 
 DeviceAgentVector HostAgentAPI::getPopulationData() {
     // Create and return a new AgentVector
-    return DeviceAgentVector(static_cast<CUDAAgent&>(agent), stateName);
+    return DeviceAgentVector(static_cast<CUDAAgent&>(agent), stateName, api.scatter, api.streamId, api.stream);
 }
 void HostAgentAPI::setPopulationData(DeviceAgentVector&pop) {
     // Tell pop to return all changed data to the device
-    pop.syncChanges(api.scatter, api.streamId, api.stream);
+    pop.syncChanges();
 }

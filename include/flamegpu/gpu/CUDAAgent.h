@@ -7,6 +7,7 @@
 #include <string>
 #include <mutex>
 #include <unordered_map>
+#include <list>
 
 // include sub classes
 #include "flamegpu/util/JitifyCache.h"
@@ -250,6 +251,12 @@ class CUDAAgent : public AgentInterface {
      * @throw InvalidMemoryCapacity If the new number of disabled + active agents would exceed currently allocated buffer capacity
      */
     void setStateAgentCount(const std::string& state, const unsigned int &newSize);
+    /**
+     * Returns a list of variable buffers attached to bound agents, not available in this agent
+     * @param state The state affected state
+     * @note This access is only intended for DeviceAgentVector's correctly handling of subagents
+     */
+    std::list<std::shared_ptr<VariableBuffer>> getUnboundVariableBuffers(const std::string& state);
 
  private:
     /**
