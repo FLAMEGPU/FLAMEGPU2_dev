@@ -13,10 +13,10 @@ class CUDAScatter;
 class CUDAAgent;
 
 /**
- * This class provides an AgentVector interface to agent data currently stored on the device
+ * This class provides an AgentVector interface to agent data currently stored on the device during execution of a CUDASimulation
  *
  * It attempts to prevent unnecessary memory transfers, as copying all agent variable buffers to only use 1
- * Would result in a large number of redundant but cost memcpys between host and device
+ * Would result in a large number of redundant but costly memcpys between host and device
  */
 class DeviceAgentVector : protected AgentVector {
  public:
@@ -137,6 +137,12 @@ class DeviceAgentVector : protected AgentVector {
      * Any operations which move agents just be applied to this buffers too
      */
     std::list<VariableBufferPair> unbound_buffers;
+    /**
+     * The currently known size of the device buffer
+     * This is used to track size before the unbound_buffers are init
+     * Can't use _size in place of this, as calls to insert/erase/etc update that before we are notified
+     */
+    unsigned int known_device_buffer_size = 0;
     /**
      * Number of agents currently allocated inside the host_buffers
      * Useful if the device buffers are resized via the CUDAAgent

@@ -3,6 +3,7 @@
 
 DeviceAgentVector::DeviceAgentVector(CUDAAgent& _cuda_agent, const std::string &_cuda_agent_state, CUDAScatter& _scatter, const unsigned int& _streamId, const cudaStream_t& _stream)
     : AgentVector(_cuda_agent.getAgentDescription(), 0)
+    , known_device_buffer_size(_cuda_agent.getStateSize(_cuda_agent_state))
     , cuda_agent(_cuda_agent)
     , cuda_agent_state(_cuda_agent_state)
     , scatter(_scatter)
@@ -10,7 +11,7 @@ DeviceAgentVector::DeviceAgentVector(CUDAAgent& _cuda_agent, const std::string &
     , stream(_stream) {
     // Create an empty AgentVector and initialise it manually
     // For each variable create an uninitialised array of variable data
-    _size = cuda_agent.getStateSize(cuda_agent_state);
+    _size = known_device_buffer_size;
     resize(_size, false);
     // @todo Delay this process until individual variable data is requested?
     for (const auto& v : agent->variables) {
@@ -62,7 +63,7 @@ void DeviceAgentVector::syncChanges() {
             gpuErrchk(cudaMemcpyAsync(buff.device->data, buff.host, unbound_host_buffer_size * variable_size, cudaMemcpyHostToDevice, stream));
         }
     }
-    cudaStreamSynchronize(stream);
+    gpuErrchk(cudaStreamSynchronize(stream));
     // Update CUDAAgent statelist size
     cuda_agent.setStateAgentCount(cuda_agent_state, _size);
 }
@@ -88,7 +89,7 @@ void DeviceAgentVector::initUnboundBuffers() {
             memcpy(buff.host + i * var_size, buff.device->default_value, var_size);
         }
     }
-    cudaStreamSynchronize(stream);
+    gpuErrchk(cudaStreamSynchronize(stream));
     unbound_host_buffer_capacity = _capacity;
     unbound_host_buffer_size = copy_len;
 }
@@ -124,37 +125,37 @@ void DeviceAgentVector::_insert(size_type pos, size_type count) {
     if (unbound_buffers.empty() || !count)
         return;
     // Unbound buffers first use, init
+    // This updates unbound_host_buffer_size to match known_device_buffer_size
     if (!unbound_host_buffer_capacity)
         initUnboundBuffers();
     // Resizes unbound buffers if necessary
-    const size_type new_size = unbound_host_buffer_size + count;
+    const size_type new_size = known_device_buffer_size + count;
     if (new_size > unbound_host_buffer_capacity) {
         resizeUnboundBuffers(_capacity, false);
         // Init new agents that won't be init by the replacement below
         for (auto& buff : unbound_buffers) {
             const size_t variable_size = buff.device->type_size * buff.device->elements;
-            for (unsigned int i = unbound_host_buffer_size + count; i < _capacity; ++i) {
+            for (unsigned int i = new_size; i < _capacity; ++i) {
                 memcpy(buff.host + i * variable_size, buff.device->default_value, variable_size);
             }
         }
     }
-    // Only move and re-init, if the insert isn't at the end
-    if (pos < unbound_host_buffer_size) {
-        for (auto& buff : unbound_buffers) {
-            const size_t variable_size = buff.device->type_size * buff.device->elements;
-            // Move all items after this index backwards count places
-            for (unsigned int i = unbound_host_buffer_size - 1; i >= pos; --i) {
-                // Copy items individually, incase the src and destination overlap
-                memcpy(buff.host + (i + count) * variable_size, buff.host + i * variable_size, variable_size);
-            }
-            // Default init the inserted variables
-            for (unsigned int i = pos; i < new_size; ++i) {
-                memcpy(buff.host + i * variable_size, buff.device->default_value, variable_size);
-            }
+    //  Move all items behind pos, then init all the newly inserted
+    for (auto& buff : unbound_buffers) {
+        const size_t variable_size = buff.device->type_size * buff.device->elements;
+        // Move all items after this index backwards count places
+        for (unsigned int i = known_device_buffer_size - 1; i >= pos; --i) {
+            // Copy items individually, incase the src and destination overlap
+            memcpy(buff.host + (i + count) * variable_size, buff.host + i * variable_size, variable_size);
+        }
+        // Default init the inserted variables
+        for (unsigned int i = pos; i < pos + count; ++i) {
+            memcpy(buff.host + i * variable_size, buff.device->default_value, variable_size);
         }
     }
     // Update size
     unbound_host_buffer_size = new_size;
+    known_device_buffer_size = _size;
     if (unbound_host_buffer_size != _size) {
         THROW InvalidOperation("Unbound buffers have gone out of sync, in DeviceAgentVector::_insert().\n");
     }
@@ -163,29 +164,26 @@ void DeviceAgentVector::_erase(size_type pos, size_type count) {
     // No unbound buffers, return
     if (unbound_buffers.empty() || !count)
         return;
-    // If initUnboundBuffers() is called, capacity/size are set to the result of erase op
-    // It is important to account for this in the remainder of the method
-    // @todo !!!!!!!!
-    const bool capacity_is_early = !unbound_host_buffer_capacity;
     // Unbound buffers first use, init
-    if (!unbound_host_buffer_capacity) 
+    if (!unbound_host_buffer_capacity)
         initUnboundBuffers();
-    const size_type new_size = unbound_host_buffer_size - count;
+    const size_type new_size = known_device_buffer_size - count;
     const size_type copy_start = pos + count;
     for (auto& buff : unbound_buffers) {
         const size_t variable_size = buff.device->type_size * buff.device->elements;
         // Move all items after this index forwards count places
         for (unsigned int i = copy_start; i < unbound_host_buffer_size; ++i) {
             // Copy items individually, incase the src and destination overlap
-            memcpy(buff.host + (i - pos) * variable_size, buff.host + i * variable_size, variable_size);
+            memcpy(buff.host + (i - count) * variable_size, buff.host + i * variable_size, variable_size);
         }
         // Default init the empty variables at the end
-        for (unsigned int i = new_size; i < unbound_host_buffer_size; ++i) {
+        for (unsigned int i = new_size; i < known_device_buffer_size; ++i) {
             memcpy(buff.host + i * variable_size, buff.device->default_value, variable_size);
         }
     }
     // Update size
     unbound_host_buffer_size = new_size;
+    known_device_buffer_size = _size;
     if (unbound_host_buffer_size != _size) {
         THROW InvalidOperation("Unbound buffers have gone out of sync, in DeviceAgentVector::_erase().\n");
     }
