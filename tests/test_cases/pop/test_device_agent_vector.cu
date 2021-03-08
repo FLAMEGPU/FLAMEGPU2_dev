@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 
 namespace DeviceAgentVectorTest {
-    const unsigned int AGENT_COUNT = 1024;
+    const unsigned int AGENT_COUNT = 10;
     const std::string MODEL_NAME = "model";
     const std::string SUBMODEL_NAME = "submodel";
     const std::string AGENT_NAME = "agent";
@@ -54,6 +54,10 @@ TEST(DeviceAgentVectorTest, SetGet) {
         ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i) + 24);
     }
 }
+FLAMEGPU_AGENT_FUNCTION(MasterIncrement, MsgNone, MsgNone) {
+    FLAMEGPU->setVariable<unsigned int>("uint", FLAMEGPU->getVariable<unsigned int>("uint") + 1);
+    return ALIVE;
+}
 
 FLAMEGPU_STEP_FUNCTION(Resize) {
     HostAgentAPI agent = FLAMEGPU->agent(AGENT_NAME);
@@ -91,7 +95,7 @@ TEST(DeviceAgentVectorTest, Resize) {
     sim.getPopulationData(av);
     ASSERT_EQ(av.size(), AGENT_COUNT * 2);
     for (unsigned int i = 0; i < AGENT_COUNT * 2; ++i) {
-        ASSERT_EQ(av[i].getVariable<int>("int"), i);
+        ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
     }
 
     // Step again
@@ -101,22 +105,22 @@ TEST(DeviceAgentVectorTest, Resize) {
     sim.getPopulationData(av);
     ASSERT_EQ(av.size(), AGENT_COUNT * 3);
     for (unsigned int i = 0; i < AGENT_COUNT * 3; ++i) {
-        ASSERT_EQ(av[i].getVariable<int>("int"), i);
+        ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
     }
 }
 FLAMEGPU_STEP_FUNCTION(Insert) {
     HostAgentAPI agent = FLAMEGPU->agent(AGENT_NAME);
     DeviceAgentVector av = agent.getPopulationData();
     AgentInstance ai(av[0]);
-    av.insert(av.size() - AGENT_COUNT/2, 1024, ai);
+    av.insert(av.size() - AGENT_COUNT/2, AGENT_COUNT, ai);
     agent.setPopulationData(av);
 }
 FLAMEGPU_STEP_FUNCTION(Erase) {
     HostAgentAPI agent = FLAMEGPU->agent(AGENT_NAME);
     DeviceAgentVector av = agent.getPopulationData();
-    av.erase(av.size() - AGENT_COUNT / 4, AGENT_COUNT / 2);
+    av.erase(AGENT_COUNT / 4, AGENT_COUNT / 2);
     av.push_back();
-    av.back().setVariable<int>("int", static_cast<int>(av.size()));
+    av.back().setVariable<int>("int", -2);
     agent.setPopulationData(av);
 }
 FLAMEGPU_EXIT_CONDITION(AlwaysExit) {
@@ -139,38 +143,60 @@ TEST(DeviceAgentVectorTest, SubmodelResize) {
     ModelDescription master_model(MODEL_NAME);
     AgentDescription& master_agent = master_model.newAgent(AGENT_NAME);
     master_agent.newVariable<int>("int", 0);
-    master_agent.newVariable<float>("float", 12.0f);
+    master_agent.newVariable<unsigned int>("uint", 12u);
+    master_agent.newFunction("MasterIncrement", MasterIncrement);
     SubModelDescription &sub_desc = master_model.newSubModel(SUBMODEL_NAME, sub_model);
     sub_desc.bindAgent(AGENT_NAME, AGENT_NAME, true);
+    master_model.newLayer().addAgentFunction(MasterIncrement);
     master_model.newLayer().addSubModel(sub_desc);
 
     // Init agent pop
     AgentVector av(master_agent, AGENT_COUNT);
-    for (unsigned int i = 0; i < AGENT_COUNT; ++i)
+    std::vector<int> vec_int;
+    std::vector<unsigned int> vec_uint;
+    for (unsigned int i = 0; i < AGENT_COUNT; ++i) {
         av[i].setVariable<int>("int", static_cast<int>(i));
+        av[i].setVariable<unsigned int>("uint", static_cast<int>(i));
+        vec_int.push_back(i);
+        vec_uint.push_back(i);
+    }
 
     // Create and step simulation
     CUDASimulation sim(master_model);
     sim.setPopulationData(av);
     sim.step();
+    // Update vectors to match
+    for (unsigned int i = 0; i < vec_uint.size(); ++i)
+        vec_uint[i]++;
+    vec_int.resize(vec_int.size() + AGENT_COUNT, 0);
+    vec_uint.resize(vec_uint.size() + AGENT_COUNT, 12u);
+    for (unsigned int i = AGENT_COUNT; i < 2 * AGENT_COUNT; ++i)
+      vec_int[i] = static_cast<int>(i);
 
     // Retrieve and validate agents match
     sim.getPopulationData(av);
-    ASSERT_EQ(av.size(), AGENT_COUNT * 2);
-    for (unsigned int i = 0; i < AGENT_COUNT * 2; ++i) {
-        ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
-        ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
+    ASSERT_EQ(av.size(), vec_int.size());
+    for (unsigned int i = 0; i < av.size(); ++i) {
+        ASSERT_EQ(av[i].getVariable<int>("int"), vec_int[i]);
+        ASSERT_EQ(av[i].getVariable<unsigned int>("uint"), vec_uint[i]);
     }
 
     // Step again
     sim.step();
+    // Update vectors to match
+    for (unsigned int i = 0; i < vec_uint.size(); ++i)
+        vec_uint[i]++;
+    vec_int.resize(vec_int.size() + AGENT_COUNT, 0);
+    vec_uint.resize(vec_uint.size() + AGENT_COUNT, 12u);
+    for (unsigned int i = 2 * AGENT_COUNT; i < 3 *AGENT_COUNT; ++i)
+        vec_int[i] = static_cast<int>(i);
 
     // Retrieve and validate agents match
     sim.getPopulationData(av);
-    ASSERT_EQ(av.size(), AGENT_COUNT * 3);
-    for (unsigned int i = 0; i < AGENT_COUNT * 3; ++i) {
-        ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
-        ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
+    ASSERT_EQ(av.size(), vec_int.size());
+    for (unsigned int i = 0; i < av.size(); ++i) {
+        ASSERT_EQ(av[i].getVariable<int>("int"), vec_int[i]);
+        ASSERT_EQ(av[i].getVariable<unsigned int>("uint"), vec_uint[i]);
     }
 }
 TEST(DeviceAgentVectorTest, SubmodelInsert) {
@@ -190,59 +216,56 @@ TEST(DeviceAgentVectorTest, SubmodelInsert) {
     ModelDescription master_model(MODEL_NAME);
     AgentDescription& master_agent = master_model.newAgent(AGENT_NAME);
     master_agent.newVariable<int>("int", 0);
-    master_agent.newVariable<float>("float", 12.0f);
+    master_agent.newVariable<unsigned int>("uint", 12u);
+    master_agent.newFunction("MasterIncrement", MasterIncrement);
     SubModelDescription& sub_desc = master_model.newSubModel(SUBMODEL_NAME, sub_model);
     sub_desc.bindAgent(AGENT_NAME, AGENT_NAME, true);
+    master_model.newLayer().addAgentFunction(MasterIncrement);
     master_model.newLayer().addSubModel(sub_desc);
 
     // Init agent pop
     AgentVector av(master_agent, AGENT_COUNT);
-    for (unsigned int i = 0; i < AGENT_COUNT; ++i)
+    std::vector<int> vec_int;
+    std::vector<unsigned int> vec_uint;
+    for (unsigned int i = 0; i < AGENT_COUNT; ++i) {
         av[i].setVariable<int>("int", static_cast<int>(i));
+        av[i].setVariable<unsigned int>("uint", static_cast<int>(i));
+        vec_int.push_back(i);
+        vec_uint.push_back(i);
+    }
 
     // Create and step simulation
     CUDASimulation sim(master_model);
     sim.setPopulationData(av);
     sim.step();
+    // Update vectors to match
+    for (unsigned int i = 0; i < vec_uint.size(); ++i)
+        vec_uint[i]++;
+    vec_int.insert(vec_int.begin() + (vec_int.size() - AGENT_COUNT / 2), AGENT_COUNT, vec_int[0]);
+    vec_uint.insert(vec_uint.begin() + (vec_uint.size() - AGENT_COUNT / 2), AGENT_COUNT, 12u);
 
     // Retrieve and validate agents match
     sim.getPopulationData(av);
-    ASSERT_EQ(av.size(), AGENT_COUNT * 2);
-    for (unsigned int i = 0; i < AGENT_COUNT * 2; ++i) {
-        if (i < AGENT_COUNT / 2) {
-            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
-            ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
-        } else if (i < (2 * AGENT_COUNT) + (AGENT_COUNT / 2)) {
-            // Clones of index 0 were inserted
-            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(0));
-            ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
-        } else {
-            // Original were moved
-            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i - AGENT_COUNT));
-            ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
-        }
+    ASSERT_EQ(av.size(), vec_int.size());
+    for (unsigned int i = 0; i < av.size(); ++i) {
+        ASSERT_EQ(av[i].getVariable<int>("int"), vec_int[i]);
+        ASSERT_EQ(av[i].getVariable<unsigned int>("uint"), vec_uint[i]);
     }
 
     // Step again
     sim.step();
+    // Update vectors to match
+    for (unsigned int i = 0; i < vec_uint.size(); ++i)
+        vec_uint[i]++;
+    vec_int.insert(vec_int.begin() + (vec_int.size() - AGENT_COUNT / 2), AGENT_COUNT, vec_int[0]);
+    vec_uint.insert(vec_uint.begin() + (vec_uint.size() - AGENT_COUNT / 2), AGENT_COUNT, 12u);
 
     // Retrieve and validate agents match
     sim.getPopulationData(av);
-    ASSERT_EQ(av.size(), AGENT_COUNT * 3);
-    for (unsigned int i = 0; i < AGENT_COUNT * 3; ++i) {
-        if (i < AGENT_COUNT / 2) {
-            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
-            ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
-        }
-        else if (i < (2 * AGENT_COUNT) + (AGENT_COUNT / 2)) {
-            // Clones of index 0 were inserted
-            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(0));
-            ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
-        } else {
-            // Original were moved
-            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i - (2 * AGENT_COUNT)));
-            ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
-        }
+    ASSERT_EQ(av.size(), vec_int.size());
+    for (unsigned int i = 0; i < av.size(); ++i) {
+        ASSERT_EQ(av[i].getVariable<int>("int"), vec_int[i]);
+        ASSERT_EQ(av[i].getVariable<unsigned int>("uint"), vec_uint[i]);
     }
 }
 TEST(DeviceAgentVectorTest, SubmodelErase) {
@@ -256,52 +279,53 @@ TEST(DeviceAgentVectorTest, SubmodelErase) {
 
     ModelDescription master_model(MODEL_NAME);
     AgentDescription& master_agent = master_model.newAgent(AGENT_NAME);
-    master_agent.newVariable<int>("int", 0);
+    master_agent.newVariable<int>("int", -1);
     master_agent.newVariable<float>("float", 12.0f);
     SubModelDescription& sub_desc = master_model.newSubModel(SUBMODEL_NAME, sub_model);
     sub_desc.bindAgent(AGENT_NAME, AGENT_NAME, true);
     master_model.newLayer().addSubModel(sub_desc);
 
-    // Init agent pop
+    // Init agent pop, and test vectors
     AgentVector av(master_agent, AGENT_COUNT);
-    for (unsigned int i = 0; i < AGENT_COUNT; ++i)
+    std::vector<int> vec_int;
+    std::vector<float> vec_flt;
+    for (unsigned int i = 0; i < AGENT_COUNT; ++i) {
         av[i].setVariable<int>("int", static_cast<int>(i));
-
+        vec_int.push_back(static_cast<int>(i));
+        vec_flt.push_back(12.0f);
+    }
     // Create and step simulation
     CUDASimulation sim(master_model);
     sim.setPopulationData(av);
     sim.step();
+    // Update vectors to match
+    vec_int.erase(vec_int.begin() + (AGENT_COUNT / 4), vec_int.begin() + (AGENT_COUNT / 2));
+    vec_flt.erase(vec_flt.begin() + (AGENT_COUNT /4), vec_flt.begin() + (AGENT_COUNT / 2));
+    vec_int.push_back(-2);
+    vec_flt.push_back(12.0f);
 
     // Retrieve and validate agents match
     sim.getPopulationData(av);
-    ASSERT_EQ(av.size(), (AGENT_COUNT * 0.75) + 1);
-    for (unsigned int i = 0; i < (AGENT_COUNT * 0.75) + 1; ++i) {
-        if (i < AGENT_COUNT / 4) {
-            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
-            ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
-        }
-        else if (i < AGENT_COUNT / 2) {
-            // Clones 500 agents were removed
-            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i - AGENT_COUNT / 2));
-            ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
-        }
-        else {
-            // 1 agent was inserted
-            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(0));
-            ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
-        }
+    ASSERT_EQ(av.size(), vec_int.size());
+    for (unsigned int i = 0; i < vec_int.size(); ++i) {
+        ASSERT_EQ(av[i].getVariable<int>("int"), vec_int[i]);
+        ASSERT_EQ(av[i].getVariable<float>("float"), vec_flt[i]);
     }
 
     // Step again
     sim.step();
+    // Update vectors to match
+    vec_int.erase(vec_int.begin() + (AGENT_COUNT / 4), vec_int.begin() + (AGENT_COUNT / 2));
+    vec_flt.erase(vec_flt.begin() + (AGENT_COUNT / 4), vec_flt.begin() + (AGENT_COUNT / 2));
+    vec_int.push_back(-2);
+    vec_flt.push_back(12.0f);
 
     // Retrieve and validate agents match
     sim.getPopulationData(av);
-    ASSERT_EQ(av.size(), AGENT_COUNT * 3);
-    // Separate the loops for agents created at each stage to easier identify where the error is coming from
-    for (unsigned int i = 0; i < AGENT_COUNT * 3; ++i) {
-        ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
-        ASSERT_EQ(av[i].getVariable<float>("float"), 12.0f);
+    ASSERT_EQ(av.size(), vec_int.size());
+    for (unsigned int i = 0; i < vec_int.size(); ++i) {
+        ASSERT_EQ(av[i].getVariable<int>("int"), vec_int[i]);
+        ASSERT_EQ(av[i].getVariable<float>("float"), vec_flt[i]);
     }
 }
 
