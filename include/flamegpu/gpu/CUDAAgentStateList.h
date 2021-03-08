@@ -140,7 +140,7 @@ class CUDAAgentStateList {
      * Returns a list of variable buffers attached to bound agents, not available in this agent
      * @note This access is only intended for DeviceAgentVector's correctly handling of subagents
      */
-    std::list<std::shared_ptr<VariableBuffer>> CUDAAgentStateList::getUnboundVariableBuffers();
+    std::list<std::shared_ptr<VariableBuffer>> getUnboundVariableBuffers();
 
  private:
     /**
