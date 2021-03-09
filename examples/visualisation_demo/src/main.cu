@@ -3,7 +3,7 @@
 #include "../flamegpu2_visualiser-build/glm-src/glm/glm.hpp"  // Cheaty access to GLM
 
 FLAMEGPU_AGENT_FUNCTION(direction2d_update, MsgNone, MsgNone) {
-    glm::vec2 loc = glm::vec2(FLAMEGPU->getVariable<float>("location_x12"), FLAMEGPU->getVariable<float>("location_y"));
+    glm::vec2 loc = glm::vec2(FLAMEGPU->getVariable<float>("location_x"), FLAMEGPU->getVariable<float>("location_y"));
     glm::vec2 vel = glm::vec2(FLAMEGPU->getVariable<float>("velocity_x"), FLAMEGPU->getVariable<float>("velocity_y"));
     // Add velocity to Location
     loc += vel;
@@ -25,7 +25,7 @@ FLAMEGPU_AGENT_FUNCTION(direction2d_update, MsgNone, MsgNone) {
         loc.y = env_max.y - (loc.y - env_max.y);
     }
     // Update values
-    FLAMEGPU->setVariable<float>("location_x12", loc.x);
+    FLAMEGPU->setVariable<float>("location_x", loc.x);
     FLAMEGPU->setVariable<float>("location_y", loc.y);
     FLAMEGPU->setVariable<float>("velocity_x", vel.x);
     FLAMEGPU->setVariable<float>("velocity_y", vel.y);
@@ -103,7 +103,7 @@ int main(int argc, const char ** argv) {
     {   
         // Direction agent 2d
         AgentDescription &agent = model.newAgent("direction2d");
-        agent.newVariable<float>("location_x12");
+        agent.newVariable<float>("location_x");
         agent.newVariable<float>("location_y");
         agent.newVariable<float>("velocity_x");
         agent.newVariable<float>("velocity_y");
@@ -120,7 +120,7 @@ int main(int argc, const char ** argv) {
         std::uniform_real_distribution<float> direction_dist(-1.0f, 1.0f);
         // Scatter all agents in the square
         for (auto agent : pop_direction2d) {
-            agent.setVariable<float>("location_x12", location_dist(rng));
+            agent.setVariable<float>("location_x", location_dist(rng));
             agent.setVariable<float>("location_y", location_dist(rng));
             glm::vec2 velocity = normalize(glm::vec2(direction_dist(rng), direction_dist(rng))) * speed_dist(rng);
             agent.setVariable<float>("velocity_x", velocity.x);
@@ -183,7 +183,7 @@ int main(int argc, const char ** argv) {
     }
     {
         auto & vis_agent = m_vis.addAgent("direction2d");
-        vis_agent.setXVariable("location_x12");
+        vis_agent.setXVariable("location_x");
         vis_agent.setYVariable("location_y");
         // Position vars are named x, y so they are used by default
         vis_agent.setModel(Stock::Models::SPHERE);
