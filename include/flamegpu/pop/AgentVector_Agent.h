@@ -113,7 +113,13 @@ class AgentVector_Agent : public AgentVector_CAgent {
     /**
      * Constructor, only ever called by AgentVector
      */
-    AgentVector_Agent(const std::shared_ptr<const AgentData> &agent, const std::weak_ptr<AgentVector::AgentDataMap> &data, AgentVector::size_type pos);
+    AgentVector_Agent(AgentVector* parent, const std::shared_ptr<const AgentData> &agent, const std::weak_ptr<AgentVector::AgentDataMap> &data, AgentVector::size_type pos);
+    /**
+     * Raw pointer to the parent AgentVector
+     * This should not be accessed unless _data can be locked!!
+     * It only exists here so that change tracking methods can be called
+     */
+    AgentVector* _parent;
 };
 
 template <typename T>
@@ -143,6 +149,8 @@ void AgentVector_Agent::setVariable(const std::string &variable_name, const T &v
     }
     // do the replace
     static_cast<T*>(v_buff->getDataPtr())[index] = value;
+    // Notify (_data was locked above)
+    _parent->_changed(variable_name, index);
 }
 template <typename T, unsigned int N>
 void AgentVector_Agent::setVariable(const std::string &variable_name, const std::array<T, N> &value) {
@@ -170,6 +178,8 @@ void AgentVector_Agent::setVariable(const std::string &variable_name, const std:
             variable_name.c_str(), v_buff->getType().name(), typeid(T).name());
     }
     memcpy(static_cast<T*>(v_buff->getDataPtr()) + (index * N), value.data(), sizeof(T) * N);
+    // Notify (_data was locked above)
+    _parent->_changed(variable_name, index);
 }
 template <typename T>
 void AgentVector_Agent::setVariable(const std::string &variable_name, const unsigned int &array_index, const T &value) {
@@ -225,6 +235,8 @@ void AgentVector_Agent::setVariableArray(const std::string &variable_name, const
             variable_name.c_str(), v_buff->getType().name(), typeid(T).name());
     }
     memcpy(static_cast<T*>(v_buff->getDataPtr()) + (index * v_buff->getElements()), value.data(), sizeof(T) * v_buff->getElements());
+    // Notify (_data was locked above)
+    _parent->_changed(variable_name, index);
 }
 #endif
 

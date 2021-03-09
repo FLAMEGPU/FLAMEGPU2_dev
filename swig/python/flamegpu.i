@@ -347,6 +347,7 @@ namespace EnvironmentManager{
 %feature("valuewrapper") DeviceAgentVector;
 %include "flamegpu/runtime/HostAPI.h"
 %include "flamegpu/runtime/HostNewAgentAPI.h"
+%ignore DeviceAgentVector::VariableBufferPair; // Not required, internal
 %include "flamegpu/pop/DeviceAgentVector.h"
 
 %include "flamegpu/runtime/HostAgentAPI.h"

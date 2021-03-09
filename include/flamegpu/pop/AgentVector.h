@@ -26,6 +26,7 @@ class AgentVector {
      * Can't include CUDAAgentStateList to friend the specific method.
      */
     friend class CUDAAgentStateList;
+    friend class AgentVector_Agent;
 
  public:
     typedef unsigned int size_type;
@@ -54,12 +55,17 @@ class AgentVector {
         const std::shared_ptr<const AgentData>& _agent;
         const std::weak_ptr<AgentDataMap> _data;
         size_type _pos;
+        /**
+         * Don't access this raw pointer unless _data can be locked
+         * It is used by AgentVector::Agent for change tracking
+         */
+        AgentVector* _parent;
      public:
         operator AgentVector::const_iterator() const {
             return const_iterator(_agent, _data, _pos);
         }
-        iterator(const std::shared_ptr<const AgentData>& agent, std::weak_ptr<AgentDataMap> data, size_type pos = 0)
-            : _agent(agent), _data(std::move(data)), _pos(pos) { }
+        iterator(AgentVector* parent, const std::shared_ptr<const AgentData>& agent, std::weak_ptr<AgentDataMap> data, size_type pos = 0)
+            : _agent(agent), _data(std::move(data)), _pos(pos), _parent(parent) { }
         iterator& operator++() { ++_pos; return *this; }
         iterator operator++(int) { iterator retval = *this; ++(*this); return retval; }
         bool operator==(iterator other) const { return _pos == other._pos &&
@@ -101,12 +107,17 @@ class AgentVector {
         const std::shared_ptr<const AgentData> &_agent;
         const std::weak_ptr<AgentDataMap> _data;
         size_type _pos;
+        /**
+         * Don't access this raw pointer unless _data can be locked
+         * It is used by AgentVector::Agent for change tracking
+         */
+        AgentVector* _parent;
      public:
         operator AgentVector::const_reverse_iterator() const {
             return const_reverse_iterator(_agent, _data, _pos);
         }
-        explicit reverse_iterator(const std::shared_ptr<const AgentData>& agent, std::weak_ptr<AgentDataMap> data, size_type pos = 0)
-            : _agent(agent), _data(std::move(data)), _pos(pos) { }
+        explicit reverse_iterator(AgentVector* parent, const std::shared_ptr<const AgentData>& agent, std::weak_ptr<AgentDataMap> data, size_type pos = 0)
+            : _agent(agent), _data(std::move(data)), _pos(pos), _parent(parent) { }
         reverse_iterator& operator++() { --_pos; return *this; }
         reverse_iterator operator++(int) { reverse_iterator retval = *this; ++(*this); return retval; }
         bool operator==(reverse_iterator other) const { return _pos == other._pos &&
@@ -465,6 +476,13 @@ class AgentVector {
      */
     virtual void _erase(size_type pos, size_type count) { }
     /**
+     * This is called to notify sub-classes that a variable (may have/) has been changed
+     * @param variable_name Name of the affected variable
+     * @param pos Index of the variables agent
+     */
+    virtual void _changed(const std::string& variable_name, size_type pos) { }
+    virtual void _changedAll(const std::string &variable_name) { }
+    /**
      * Resizes the internal vector
      * Note, this version only updates _capacity, _size remains unchanged.
      */
@@ -502,8 +520,10 @@ T* AgentVector::data(const std::string& variable_name) {
     }
     // Does the map have a vector
     const auto& map_it = _data->find(variable_name);
-    if (map_it != _data->end())
+    if (map_it != _data->end()) {
+        _changedAll(variable_name);
         return static_cast<T*>(map_it->second->getDataPtr());
+    }
     return nullptr;
 }
 template<typename T>

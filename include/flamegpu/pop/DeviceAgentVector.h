@@ -96,6 +96,8 @@ class DeviceAgentVector : protected AgentVector {
       * Triggered when erase() has been called
       */
      void _erase(size_type pos, size_type count) override;
+
+ private:
     /**
      * Pair of a host-backed device buffer
      * This allows transactions which impact master-agent unbound variables to work correctly
@@ -117,8 +119,9 @@ class DeviceAgentVector : protected AgentVector {
         /**
           * Copy operations are disabled
           */
-        VariableBufferPair(const VariableBufferPair& other) = delete;
-        VariableBufferPair& operator=(const VariableBufferPair& other) = delete;
+        // @todo Solve this
+        // VariableBufferPair(const VariableBufferPair& other) = delete;
+        // VariableBufferPair& operator=(const VariableBufferPair& other) = delete;
 
         /**
          * Free host if
