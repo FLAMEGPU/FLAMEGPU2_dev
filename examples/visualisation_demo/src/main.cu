@@ -1,5 +1,7 @@
 #include "flamegpu/flame_api.h"
-#include "flamegpu/util/nvtx.h"
+// Disable a warning caused by GLM using `__host__ __device__` and `= default` on functions
+// Can't just wrap the include, as everywhere the affected functions are used triggers the warning.
+#pragma diag_suppress = esa_on_defaulted_function_ignored
 #include "../flamegpu2_visualiser-build/glm-src/glm/glm.hpp"  // Cheaty access to GLM
 
 FLAMEGPU_AGENT_FUNCTION(direction2d_update, MsgNone, MsgNone) {
@@ -66,15 +68,6 @@ FLAMEGPU_AGENT_FUNCTION(direction3d_update, MsgNone, MsgNone) {
         vel.z = -vel.z;
         loc.z = env_max.z - (loc.z - env_max.z);
     }
-    // Slow down the kernel
-    long long int start_clock = clock64();
-    long long int clock_offset = 0;
-    while (clock_offset < 9000000) {
-        //if (threadIdx.x == 0)
-            //printf("%llu\n",clock_offset);
-        clock_offset = clock64() - start_clock;
-    }
-    FLAMEGPU->setVariable<float>("location_x", (float)clock_offset);
     // Update values
     FLAMEGPU->setVariable<float>("location_x", loc.x);
     FLAMEGPU->setVariable<float>("location_y", loc.y);
@@ -87,20 +80,20 @@ FLAMEGPU_AGENT_FUNCTION(direction3d_update, MsgNone, MsgNone) {
 
 int main(int argc, const char ** argv) {
     std::default_random_engine rng;
-    
+
     ModelDescription model("Visualisation Demo");
     EnvironmentDescription &env = model.Environment();
     LayerDescription &layer1 = model.newLayer();
-    
+
     // This model exists to demonstrate visualisation features
     // Each agent population demonstrates a different feature
-    
+
     const int ENV_DIM = 50;
     const int ENV_GAP = 20;
     /**
      * Visualise an agent according to it's direction 2d
      */
-    {   
+    {
         // Direction agent 2d
         AgentDescription &agent = model.newAgent("direction2d");
         agent.newVariable<float>("location_x");
@@ -180,13 +173,14 @@ int main(int argc, const char ** argv) {
         m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, INIT_CAM);
         m_vis.setInitialCameraTarget(0, 0, 0);
         m_vis.setCameraSpeed(0.02f);
+        m_vis.setSimulationSpeed(50);
     }
     {
         auto & vis_agent = m_vis.addAgent("direction2d");
         vis_agent.setXVariable("location_x");
         vis_agent.setYVariable("location_y");
         // Position vars are named x, y so they are used by default
-        vis_agent.setModel(Stock::Models::SPHERE);
+        vis_agent.setModel(Stock::Models::TEAPOT);
         vis_agent.setModelScale(ENV_DIM/25.0f);
         // Draw outline of environment boundary
         auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
@@ -201,7 +195,7 @@ int main(int argc, const char ** argv) {
         vis_agent.setYVariable("location_y");
         vis_agent.setZVariable("location_z");
         // Position vars are named x, y, z so they are used by default
-        vis_agent.setModel(Stock::Models::SPHERE);
+        vis_agent.setModel(Stock::Models::TEAPOT);
         vis_agent.setModelScale(ENV_DIM / 25.0f);
         // Draw outline of environment boundary
         auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
