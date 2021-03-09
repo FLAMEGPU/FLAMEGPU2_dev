@@ -18,6 +18,15 @@ FLAMEGPU_STEP_FUNCTION(SetGet) {
     }
     agent.setPopulationData(av);
 }
+FLAMEGPU_STEP_FUNCTION(SetGetHalf) {
+    HostAgentAPI agent = FLAMEGPU->agent(AGENT_NAME);
+    DeviceAgentVector av = agent.getPopulationData();
+    for (unsigned int i = av.size()/4; i < av.size() - av.size()/4; ++i) {
+        av[i].setVariable<int>("int", av[i].getVariable<int>("int") + 12);
+    }
+    agent.setPopulationData(av);
+}
+
 
 TEST(DeviceAgentVectorTest, SetGet) {
     // Initialise an agent population with values in a variable [0,1,2..N]
@@ -52,6 +61,51 @@ TEST(DeviceAgentVectorTest, SetGet) {
     sim.getPopulationData(av);
     for (unsigned int i = 0; i < AGENT_COUNT; ++i) {
         ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i) + 24);
+    }
+}
+TEST(DeviceAgentVectorTest, SetGetHalf) {
+    // Initialise an agent population with values in a variable [0,1,2..N]
+    // Inside a step function, retrieve the agent population as a DeviceAgentVector
+    // Update half agents (contiguous block) by adding 12 to their value
+    // After model completion, retrieve the agent population and check their values are [12,13,14..N+12]
+    ModelDescription model(MODEL_NAME);
+    AgentDescription& agent = model.newAgent(AGENT_NAME);
+    agent.newVariable<int>("int", 0);
+    model.addStepFunction(SetGetHalf);
+
+    // Init agent pop
+    AgentVector av(agent, AGENT_COUNT);
+    for (unsigned int i = 0; i < AGENT_COUNT; ++i)
+        av[i].setVariable<int>("int", static_cast<int>(i));
+
+    // Create and step simulation
+    CUDASimulation sim(model);
+    sim.setPopulationData(av);
+    sim.step();
+
+    // Retrieve and validate agents match
+    sim.getPopulationData(av);
+    ASSERT_EQ(av.size(), AGENT_COUNT);
+    for (unsigned int i = 0; i < AGENT_COUNT; ++i) {
+        if (i < AGENT_COUNT/4 || i >= AGENT_COUNT - AGENT_COUNT/4) {
+            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
+        } else  {
+            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i) + 12);
+        }
+    }
+
+    // Step again
+    sim.step();
+
+    // Retrieve and validate agents match
+    sim.getPopulationData(av);
+    ASSERT_EQ(av.size(), AGENT_COUNT);
+    for (unsigned int i = 0; i < AGENT_COUNT; ++i) {
+        if (i < AGENT_COUNT / 4 || i >= AGENT_COUNT - AGENT_COUNT / 4) {
+            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i));
+        } else {
+            ASSERT_EQ(av[i].getVariable<int>("int"), static_cast<int>(i) + 24);
+        }
     }
 }
 FLAMEGPU_AGENT_FUNCTION(MasterIncrement, MsgNone, MsgNone) {

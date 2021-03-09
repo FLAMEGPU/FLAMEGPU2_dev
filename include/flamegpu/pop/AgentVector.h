@@ -481,7 +481,13 @@ class AgentVector {
      * @param pos Index of the variables agent
      */
     virtual void _changed(const std::string& variable_name, size_type pos) { }
-    virtual void _changedAll(const std::string &variable_name) { }
+    /**
+     * Useful for notifying changes due to inserting/removing items, which essentially move all trailing items
+     * @param variable_name Name of the variable that has been changed
+     * @param pos The first index that has been changed
+     * @note This is not called in conjunction with _insert() or _erase()
+     */
+    virtual void _changedAfter(const std::string &variable_name, size_type pos) { }
     /**
      * Resizes the internal vector
      * Note, this version only updates _capacity, _size remains unchanged.
@@ -521,7 +527,7 @@ T* AgentVector::data(const std::string& variable_name) {
     // Does the map have a vector
     const auto& map_it = _data->find(variable_name);
     if (map_it != _data->end()) {
-        _changedAll(variable_name);
+        _changedAfter(variable_name, 0);
         return static_cast<T*>(map_it->second->getDataPtr());
     }
     return nullptr;

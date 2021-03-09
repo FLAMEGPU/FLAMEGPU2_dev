@@ -3,6 +3,7 @@
 
 DeviceAgentVector::DeviceAgentVector(CUDAAgent& _cuda_agent, const std::string &_cuda_agent_state, CUDAScatter& _scatter, const unsigned int& _streamId, const cudaStream_t& _stream)
     : AgentVector(_cuda_agent.getAgentDescription(), 0)
+    , unbound_buffers_has_changed(false)
     , known_device_buffer_size(_cuda_agent.getStateSize(_cuda_agent_state))
     , cuda_agent(_cuda_agent)
     , cuda_agent_state(_cuda_agent_state)
@@ -46,15 +47,21 @@ void DeviceAgentVector::syncChanges() {
         cuda_agent.initExcludedVars(cuda_agent_state, new_allocated_size - old_size, old_size, scatter, streamId, stream);
     }
     // Copy all changes back to device
+    for (const auto &ch : change_detail) {
+        auto &v = agent->variables.at(ch.first);
+        // Copy back variable data into each array
+        const char* host_src = static_cast<const char*>(_data->at(ch.first)->getDataPtr());
+        char* device_dest = static_cast<char*>(cuda_agent.getStateVariablePtr(cuda_agent_state, ch.first));
+        const size_t copy_offset = ch.second.first * v.type_size * v.elements;
+        const size_t copy_len = (ch.second.second - ch.second.first) * v.type_size * v.elements;
+        gpuErrchk(cudaMemcpyAsync(device_dest + copy_offset, host_src + copy_offset, copy_len, cudaMemcpyHostToDevice, stream));
+    }
+    change_detail.clear();
     for (const auto& v : agent->variables) {
         // @todo Only copy changed data
-        // Copy back variable data into each array
-        const void* host_src = _data->at(v.first)->getDataPtr();
-        void* device_dest = cuda_agent.getStateVariablePtr(cuda_agent_state, v.first);
-        gpuErrchk(cudaMemcpyAsync(device_dest, host_src, _size * v.second.type_size * v.second.elements, cudaMemcpyHostToDevice, stream));
     }
     // Copy all unbound buffes
-    if (unbound_host_buffer_capacity) {
+    if (unbound_buffers_has_changed) {
         if (unbound_host_buffer_size != _size) {
             THROW InvalidOperation("Unbound buffers have gone out of sync, in DeviceAgentVector::syncChanges().\n");
         }
@@ -62,6 +69,7 @@ void DeviceAgentVector::syncChanges() {
             const size_t variable_size = buff.device->type_size * buff.device->elements;
             gpuErrchk(cudaMemcpyAsync(buff.device->data, buff.host, unbound_host_buffer_size * variable_size, cudaMemcpyHostToDevice, stream));
         }
+        unbound_buffers_has_changed = false;
     }
     gpuErrchk(cudaStreamSynchronize(stream));
     // Update CUDAAgent statelist size
@@ -92,6 +100,7 @@ void DeviceAgentVector::initUnboundBuffers() {
     gpuErrchk(cudaStreamSynchronize(stream));
     unbound_host_buffer_capacity = _capacity;
     unbound_host_buffer_size = copy_len;
+    unbound_buffers_has_changed = true;  // Probably not required, but if they are being init, high chance they're going to be changed
 }
 void DeviceAgentVector::resizeUnboundBuffers(const unsigned int& new_capacity, bool init) {
     // Resize to match agent_count
@@ -118,6 +127,7 @@ void DeviceAgentVector::resizeUnboundBuffers(const unsigned int& new_capacity, b
     }
     unbound_host_buffer_capacity = new_capacity;
     // unbound_host_buffer_size = agent_count;  // This would only make sense for init, but consisent behaviour is better
+    unbound_buffers_has_changed = true;  // Probably not required, but if they are resized, high chance theyre going to change
 }
 
 void DeviceAgentVector::_insert(size_type pos, size_type count) {
@@ -154,10 +164,24 @@ void DeviceAgentVector::_insert(size_type pos, size_type count) {
         }
     }
     // Update size
+    unbound_buffers_has_changed = true;
     unbound_host_buffer_size = new_size;
     known_device_buffer_size = _size;
     if (unbound_host_buffer_size != _size) {
         THROW InvalidOperation("Unbound buffers have gone out of sync, in DeviceAgentVector::_insert().\n");
+    }
+    // Update change detail for all variables
+    for (const auto& v : agent->variables) {
+        // Does it exist in change map
+        auto change = change_detail.find(v.first);
+        if (change == change_detail.end()) {
+            change_detail.emplace(v.first, std::pair<size_type, size_type>{pos, _size});
+        } else {
+            // Inclusive min bound
+            change->second.first = change->second.first > pos ? pos : change->second.first;
+            // Exclusive max bound
+            change->second.second = _size;
+        }
     }
 }
 void DeviceAgentVector::_erase(size_type pos, size_type count) {
@@ -182,9 +206,63 @@ void DeviceAgentVector::_erase(size_type pos, size_type count) {
         }
     }
     // Update size
+    unbound_buffers_has_changed = true;
     unbound_host_buffer_size = new_size;
     known_device_buffer_size = _size;
     if (unbound_host_buffer_size != _size) {
         THROW InvalidOperation("Unbound buffers have gone out of sync, in DeviceAgentVector::_erase().\n");
+    }
+    // Update change detail for all variables
+    for (const auto &v : agent->variables) {
+        // Does it exist in change map
+        auto change = change_detail.find(v.first);
+        if (change == change_detail.end()) {
+            change_detail.emplace(v.first, std::pair<size_type, size_type>{pos, _size});
+        } else {
+            // Inclusive min bound
+            change->second.first = change->second.first > pos ? pos : change->second.first;
+            // Exclusive max bound
+            change->second.second = _size;
+        }
+    }
+}
+
+
+void DeviceAgentVector::_changed(const std::string& variable_name, size_type pos) {
+    // Check the variable exists
+    auto var = agent->variables.find(variable_name);
+    if (var == agent->variables.end()) {
+        THROW InvalidAgentVar("Variable %s was not found, "
+            "in DeviceAgentVector::_changed()\n",
+            variable_name.c_str());
+    }
+    // Does it exist in change map
+    auto change = change_detail.find(variable_name);
+    if (change == change_detail.end()) {
+        change_detail.emplace(variable_name, std::pair<size_type, size_type>{pos, pos + 1});
+    } else {
+        // Inclusive min bound
+        change->second.first = change->second.first > pos ? pos : change->second.first;
+        // Exclusive max bound
+        change->second.second = change->second.second <= pos ? pos + 1 : change->second.second;
+    }
+}
+void DeviceAgentVector::_changedAfter(const std::string& variable_name, size_type pos) {
+    // Check the variable exists
+    auto var = agent->variables.find(variable_name);
+    if (var == agent->variables.end()) {
+        THROW InvalidAgentVar("Variable %s was not found, "
+            "in DeviceAgentVector::_changed()\n",
+            variable_name.c_str());
+    }
+    // Does it exist in change map
+    auto change = change_detail.find(variable_name);
+    if (change == change_detail.end()) {
+        change_detail.emplace(variable_name, std::pair<size_type, size_type>{pos, _size});
+    } else {
+        // Inclusive min bound
+        change->second.first = change->second.first > pos ? pos : change->second.first;
+        // Exclusive max bound
+        change->second.second = _size;
     }
 }

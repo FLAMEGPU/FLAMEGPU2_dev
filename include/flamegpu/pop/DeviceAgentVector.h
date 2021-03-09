@@ -5,6 +5,7 @@
 #include <utility>
 #include <memory>
 #include <list>
+#include <map>
 
 #include "flamegpu/pop/AgentVector.h"
 #include "flamegpu/gpu/CUDAFatAgentStateList.h"
@@ -96,6 +97,28 @@ class DeviceAgentVector : protected AgentVector {
       * Triggered when erase() has been called
       */
      void _erase(size_type pos, size_type count) override;
+     /**
+      * Useful for notifying changes due when a single agent variable has been updated (AgentVector::Agent::setVariable())
+      * @param variable_name Name of the variable that has been changed
+      * @param pos The index of the agent that's variable has been changed
+      */
+     void _changed(const std::string& variable_name, size_type pos) override;
+     /**
+      * Useful for notifying changes due to inserting/removing items, which essentially move all trailing items
+      * @param variable_name Name of the variable that has been changed
+      * @param pos The first index that has been changed
+      */
+     void _changedAfter(const std::string& variable_name, size_type pos) override;
+     /**
+      * Store information regarding which variables have been changed
+      * This map is built as changes come in, it is empty if no changes have been made
+      */
+     std::map<std::string, std::pair<size_type, size_type>> change_detail;
+     /**
+      * Store information regarding which variables have been changed
+      * This map is built as changes come in, it is empty if no changes have been made
+      */
+    bool unbound_buffers_has_changed;
 
  private:
     /**

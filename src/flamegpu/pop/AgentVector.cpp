@@ -122,7 +122,7 @@ void* AgentVector::data(const std::string& variable_name) {
     // Does the map have a vector
     const auto& map_it = _data->find(variable_name);
     if (map_it != _data->end()) {
-        _changedAll(variable_name);
+        _changedAfter(variable_name, 0);
         return map_it->second->getDataPtr();
     }
     return nullptr;
