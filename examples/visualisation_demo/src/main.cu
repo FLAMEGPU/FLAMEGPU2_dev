@@ -178,6 +178,8 @@ int main(int argc, const char ** argv) {
         auto & vis_agent = m_vis.addAgent("direction2d");
         vis_agent.setXVariable("location_x");
         vis_agent.setYVariable("location_y");
+        vis_agent.setDirectionXVariable("velocity_x");
+        vis_agent.setDirectionYVariable("velocity_y");
         // Position vars are named x, y so they are used by default
         vis_agent.setModel(Stock::Models::TEAPOT);
         vis_agent.setModelScale(ENV_DIM / 10.0f);
@@ -194,6 +196,9 @@ int main(int argc, const char ** argv) {
         vis_agent.setXVariable("location_x");
         vis_agent.setYVariable("location_y");
         vis_agent.setZVariable("location_z");
+        vis_agent.setDirectionXVariable("velocity_x");
+        vis_agent.setDirectionYVariable("velocity_y");
+        vis_agent.setDirectionZVariable("velocity_z");
         // Position vars are named x, y, z so they are used by default
         vis_agent.setModel(Stock::Models::TEAPOT);
         vis_agent.setModelScale(ENV_DIM / 10.0f);

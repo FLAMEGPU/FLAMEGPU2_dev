@@ -61,10 +61,53 @@ class AgentVis {
      */
     void setZVariable(const std::string &var_name);
     /**
+     * Set the name of the variable representing the agents x direction
+     * @param var_name Name of the agent variable
+     * @note unnecessary if the variable is "x"
+     */
+    void setDirectionXVariable(const std::string& var_name);
+    /**
+     * Set the name of the variable representing the agents y direction
+     * @param var_name Name of the agent variable
+     * @note unnecessary if the variable is "y"
+     */
+    void setDirectionYVariable(const std::string& var_name);
+    /**
+     * Set the name of the variable representing the agents z direction
+     * @param var_name Name of the agent variable
+     * @note unnecessary if the variable is "z", or the model is 2D
+     */
+    void setDirectionZVariable(const std::string& var_name);
+    /**
+     * Clears the agent's x variable binding
+     * @see setXVariable(const std::string &)
+     */
+    void clearXVariable();
+    /**
+     * Clears the agent's y variable binding
+     * @see setYVariable(const std::string &)
+     */
+    void clearYVariable();
+    /**
      * Clears the agent's z variable binding
      * @see setZVariable(const std::string &)
      */
-    void clearZVariables();
+    void clearZVariable();
+    /**
+     * Clears the agent's direction x variable binding
+     * @see setXVariable(const std::string &)
+     */
+    void clearDirectionXVariable();
+    /**
+     * Clears the agent's direction y variable binding
+     * @see setYVariable(const std::string &)
+     */
+    void clearDirectionYVariable();
+    /**
+     * Clears the agent's direction z variable binding
+     * @see setZVariable(const std::string &)
+     */
+    void clearDirectionZVariable();
     /**
      * Returns the variable used for the agent's location's x coordinate
      */
@@ -77,6 +120,18 @@ class AgentVis {
      * Returns the variable used for the agent's location's z coordinate
      */
     std::string getZVariable() const;
+    /**
+     * Returns the variable used for the agent's direction's x coordinate
+     */
+    std::string getDirectionXVariable() const;
+    /**
+     * Returns the variable used for the agent's direction's y coordinate
+     */
+    std::string getDirectionYVariable() const;
+    /**
+     * Returns the variable used for the agent's direction's z coordinate
+     */
+    std::string getDirectionZVariable() const;
 
     /**
      * Use a model from file
@@ -166,6 +221,13 @@ class AgentVis {
      * @see setZVariable(const std::string &)
      */
     std::string x_var, y_var, z_var;
+    /**
+     * Names of the agent variables holding the agent's direction
+     * @see setDirectionXVariable(const std::string &)
+     * @see setDirectionYVariable(const std::string &)
+     * @see setDirectionZVariable(const std::string &)
+     */
+    std::string dx_var, dy_var, dz_var;
 };
 
 #endif  // VISUALISATION

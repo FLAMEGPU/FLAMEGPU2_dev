@@ -66,8 +66,47 @@ void AgentVis::setZVariable(const std::string &var_name) {
     }
     z_var = var_name;
 }
-void AgentVis::clearZVariables() {
+void AgentVis::setDirectionXVariable(const std::string& var_name) {
+    if (agentData.variables.find(var_name) == agentData.variables.end()) {
+        THROW InvalidAgentVar("Variable '%s' was not found within agent '%s', "
+            "in AgentVis::setDirectionXVariable()\n",
+            var_name.c_str(), agentData.name.c_str());
+    }
+    dx_var = var_name;
+}
+void AgentVis::setDirectionYVariable(const std::string& var_name) {
+    if (agentData.variables.find(var_name) == agentData.variables.end()) {
+        THROW InvalidAgentVar("Variable '%s' was not found within agent '%s', "
+            "in AgentVis::setDirectionYVariable()\n",
+            var_name.c_str(), agentData.name.c_str());
+    }
+    dy_var = var_name;
+}
+void AgentVis::setDirectionZVariable(const std::string& var_name) {
+    if (agentData.variables.find(var_name) == agentData.variables.end()) {
+        THROW InvalidAgentVar("Variable '%s' was not found within agent '%s', "
+            "in AgentVis::setDirectionZVariable()\n",
+            var_name.c_str(), agentData.name.c_str());
+    }
+    dz_var = var_name;
+}
+void AgentVis::clearXVariable() {
+    x_var = "";
+}
+void AgentVis::clearYVariable() {
+    y_var = "";
+}
+void AgentVis::clearZVariable() {
     z_var = "";
+}
+void AgentVis::clearDirectionXVariable() {
+    dx_var = "";
+}
+void AgentVis::clearDirectionYVariable() {
+    dy_var = "";
+}
+void AgentVis::clearDirectionZVariable() {
+    dz_var = "";
 }
 std::string AgentVis::getXVariable() const {
     return x_var;
@@ -78,6 +117,15 @@ std::string AgentVis::getYVariable() const {
 std::string AgentVis::getZVariable() const {
     return z_var;
 }
+std::string AgentVis::getDirectionXVariable() const {
+    return dx_var;
+}
+std::string AgentVis::getDirectionYVariable() const {
+    return dy_var;
+}
+std::string AgentVis::getDirectionZVariable() const {
+    return dz_var;
+}
 void AgentVis::initBindings(std::unique_ptr<FLAMEGPU_Visualisation> &vis) {
     // Pass each state's vis config to the visualiser
     for (auto &state : agentData.states) {
@@ -87,7 +135,10 @@ void AgentVis::initBindings(std::unique_ptr<FLAMEGPU_Visualisation> &vis) {
         if (states.find(state) != states.end()) {
             vc = states.at(state).config;
         }
-        vis->addAgentState(agentData.name, state, vc, !this->x_var.empty(), !this->y_var.empty(), !this->z_var.empty(), !vc.color_var.empty());
+        vis->addAgentState(agentData.name, state, vc,
+        !this->x_var.empty(), !this->y_var.empty(), !this->z_var.empty(),
+        !vc.color_var.empty(),
+        !this->dx_var.empty(), !this->dy_var.empty(), !this->dz_var.empty());
     }
 }
 void AgentVis::requestBufferResizes(std::unique_ptr<FLAMEGPU_Visualisation> &vis) {
@@ -108,9 +159,11 @@ void AgentVis::updateBuffers(std::unique_ptr<FLAMEGPU_Visualisation> &vis) {
             reinterpret_cast<float *>(x_var.empty() ? nullptr : state_data_map->getVariablePointer(x_var)),
             reinterpret_cast<float *>(y_var.empty() ? nullptr : state_data_map->getVariablePointer(y_var)),
             reinterpret_cast<float *>(z_var.empty() ? nullptr : state_data_map->getVariablePointer(z_var)),
-            reinterpret_cast<float*>(state_config.color_var.empty() ? nullptr : state_data_map->getVariablePointer(state_config.color_var)));
+            reinterpret_cast<float*>(state_config.color_var.empty() ? nullptr : state_data_map->getVariablePointer(state_config.color_var)),
+            reinterpret_cast<float*>(dx_var.empty() ? nullptr : state_data_map->getVariablePointer(dx_var)),
+            reinterpret_cast<float*>(dy_var.empty() ? nullptr : state_data_map->getVariablePointer(dy_var)),
+            reinterpret_cast<float*>(dz_var.empty() ? nullptr : state_data_map->getVariablePointer(dz_var)));
     }
-    // TODO Other buffers? (e.g. direction[xyz])
 }
 
 void AgentVis::setModel(const std::string &modelPath, const std::string &texturePath) {
