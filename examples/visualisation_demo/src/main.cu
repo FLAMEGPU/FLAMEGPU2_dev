@@ -180,7 +180,8 @@ int main(int argc, const char ** argv) {
         vis_agent.setYVariable("location_y");
         // Position vars are named x, y so they are used by default
         vis_agent.setModel(Stock::Models::TEAPOT);
-        vis_agent.setModelScale(ENV_DIM/10.0f);
+        vis_agent.setModelScale(ENV_DIM / 10.0f);
+        vis_agent.setColor(ViridisInterpolation("location_y", 0, ENV_DIM));
         // Draw outline of environment boundary
         auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
         v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(0, ENV_DIM, 0);
@@ -196,6 +197,7 @@ int main(int argc, const char ** argv) {
         // Position vars are named x, y, z so they are used by default
         vis_agent.setModel(Stock::Models::TEAPOT);
         vis_agent.setModelScale(ENV_DIM / 10.0f);
+        vis_agent.setColor(HSVInterpolation::REDGREEN("location_y", 0, ENV_DIM));
         // Draw outline of environment boundary
         auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
         // Bottom square
