@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <memory>
 
 
 #include "flamegpu/sim/AgentInterface.h"
@@ -61,7 +62,18 @@ class HostAgentAPI {
         , agent(_agent)
         , hasState(true)
         , stateName(_stateName)
-        { }
+        , population(nullptr)
+    { }
+
+    ~HostAgentAPI();
+
+    HostAgentAPI(const HostAgentAPI& other)
+        : api(other.api)
+        , agent(other.agent)
+        , hasState(other.hasState)
+        , stateName(other.stateName)
+        , population(nullptr)  // Never copy DeviceAgentVector
+    { }
     /*
      * Returns the number of agents in this state
      */
@@ -227,6 +239,7 @@ class HostAgentAPI {
     AgentInterface &agent;
     bool hasState;
     const std::string stateName;
+    std::unique_ptr<DeviceAgentVector_t> population;
 };
 
 inline unsigned HostAgentAPI::count() {

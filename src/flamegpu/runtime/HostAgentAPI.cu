@@ -1,5 +1,11 @@
 #include "flamegpu/runtime/HostAgentAPI.h"
 
+HostAgentAPI::~HostAgentAPI() {
+    if (population) {
+        population->syncChanges();
+        population.reset();
+    }
+}
 __global__ void initToThreadIndex(unsigned int *output, unsigned int threadCount) {
     const unsigned int TID = blockIdx.x * blockDim.x + threadIdx.x;
     if (TID < threadCount) {
@@ -26,7 +32,10 @@ void HostAgentAPI::sortBuffer(void *dest, void*src, unsigned int *position, cons
 
 DeviceAgentVector HostAgentAPI::getPopulationData() {
     // Create and return a new AgentVector
-    return DeviceAgentVector(static_cast<CUDAAgent&>(agent), stateName, api.scatter, api.streamId, api.stream);
+    if (!population) {
+        population = std::make_unique<DeviceAgentVector_t>(static_cast<CUDAAgent&>(agent), stateName, api.scatter, api.streamId, api.stream);
+    }
+    return *population;
 }
 void HostAgentAPI::setPopulationData(DeviceAgentVector&pop) {
     // Tell pop to return all changed data to the device

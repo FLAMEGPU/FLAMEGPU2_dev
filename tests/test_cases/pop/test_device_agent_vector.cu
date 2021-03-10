@@ -16,7 +16,6 @@ FLAMEGPU_STEP_FUNCTION(SetGet) {
     for (AgentVector::Agent ai : av) {
         ai.setVariable<int>("int", ai.getVariable<int>("int") + 12);
     }
-    agent.setPopulationData(av);
 }
 FLAMEGPU_STEP_FUNCTION(SetGetHalf) {
     HostAgentAPI agent = FLAMEGPU->agent(AGENT_NAME);
@@ -24,7 +23,7 @@ FLAMEGPU_STEP_FUNCTION(SetGetHalf) {
     for (unsigned int i = av.size()/4; i < av.size() - av.size()/4; ++i) {
         av[i].setVariable<int>("int", av[i].getVariable<int>("int") + 12);
     }
-    agent.setPopulationData(av);
+    // agent.setPopulationData(av);
 }
 
 
@@ -122,7 +121,6 @@ FLAMEGPU_STEP_FUNCTION(Resize) {
     for (unsigned int i = av_size; i < av_size + AGENT_COUNT; ++i) {
         av[i].setVariable<int>("int", i);
     }
-    agent.setPopulationData(av);
 }
 TEST(DeviceAgentVectorTest, Resize) {
     // In void CUDAFatAgentStateList::resize() (as of 2021-03-04)
@@ -167,7 +165,6 @@ FLAMEGPU_STEP_FUNCTION(Insert) {
     DeviceAgentVector av = agent.getPopulationData();
     AgentInstance ai(av[0]);
     av.insert(av.size() - AGENT_COUNT/2, AGENT_COUNT, ai);
-    agent.setPopulationData(av);
 }
 FLAMEGPU_STEP_FUNCTION(Erase) {
     HostAgentAPI agent = FLAMEGPU->agent(AGENT_NAME);
@@ -175,7 +172,6 @@ FLAMEGPU_STEP_FUNCTION(Erase) {
     av.erase(AGENT_COUNT / 4, AGENT_COUNT / 2);
     av.push_back();
     av.back().setVariable<int>("int", -2);
-    agent.setPopulationData(av);
 }
 FLAMEGPU_EXIT_CONDITION(AlwaysExit) {
     return EXIT;

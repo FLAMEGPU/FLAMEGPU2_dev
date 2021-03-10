@@ -13,26 +13,32 @@
 class CUDAScatter;
 class CUDAAgent;
 
+class DeviceAgentVector_t;
+/**
+ * This class is returned by ref
+ * Hide that from the user with a typedef
+ */
+typedef DeviceAgentVector_t& DeviceAgentVector;
+
 /**
  * This class provides an AgentVector interface to agent data currently stored on the device during execution of a CUDASimulation
  *
  * It attempts to prevent unnecessary memory transfers, as copying all agent variable buffers to only use 1
  * Would result in a large number of redundant but costly memcpys between host and device
  */
-class DeviceAgentVector : protected AgentVector {
+class DeviceAgentVector_t : protected AgentVector {
  public:
     /**
       * Construct a DeviceAgentVector interface to the on-device data of cuda_agent
       * @param cuda_agent CUDAAgent instance holding pointers to the desired agent data
       * @param cuda_agent_state Name of the state within cuda_agent to represent.
       */
-    DeviceAgentVector(CUDAAgent &cuda_agent, const std::string& cuda_agent_state, CUDAScatter& scatter, const unsigned int& streamId, const cudaStream_t& stream);
+    DeviceAgentVector_t(CUDAAgent &cuda_agent, const std::string& cuda_agent_state, CUDAScatter& scatter, const unsigned int& streamId, const cudaStream_t& stream);
     /**
      * Copy operations are disabled
      */
-    // @todo SOLVE THIS
-    // DeviceAgentVector(const DeviceAgentVector& other) = delete;
-    // DeviceAgentVector& operator=(const DeviceAgentVector& other) = delete;
+    DeviceAgentVector_t(const DeviceAgentVector_t& other) = delete;
+    DeviceAgentVector_t& operator=(const DeviceAgentVector_t& other) = delete;
     /**
      * Copies changed agent data back to device
      */

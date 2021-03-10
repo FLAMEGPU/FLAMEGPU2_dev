@@ -1,7 +1,7 @@
 #include "flamegpu/pop/DeviceAgentVector.h"
 #include "flamegpu/gpu/CUDAAgent.h"
 
-DeviceAgentVector::DeviceAgentVector(CUDAAgent& _cuda_agent, const std::string &_cuda_agent_state, CUDAScatter& _scatter, const unsigned int& _streamId, const cudaStream_t& _stream)
+DeviceAgentVector_t::DeviceAgentVector_t(CUDAAgent& _cuda_agent, const std::string &_cuda_agent_state, CUDAScatter& _scatter, const unsigned int& _streamId, const cudaStream_t& _stream)
     : AgentVector(_cuda_agent.getAgentDescription(), 0)
     , unbound_buffers_has_changed(false)
     , known_device_buffer_size(_cuda_agent.getStateSize(_cuda_agent_state))
@@ -34,7 +34,7 @@ DeviceAgentVector::DeviceAgentVector(CUDAAgent& _cuda_agent, const std::string &
     }
 }
 
-void DeviceAgentVector::syncChanges() {
+void DeviceAgentVector_t::syncChanges() {
     // Resize device buffers if necessary
     const unsigned int old_allocated_size = cuda_agent.getStateAllocatedSize(cuda_agent_state);
     if (_size > old_allocated_size) {
@@ -76,7 +76,7 @@ void DeviceAgentVector::syncChanges() {
     cuda_agent.setStateAgentCount(cuda_agent_state, _size);
 }
 
-void DeviceAgentVector::initUnboundBuffers() {
+void DeviceAgentVector_t::initUnboundBuffers() {
     if (!_capacity)
       return;
     const unsigned int device_len = cuda_agent.getStateSize(cuda_agent_state);
@@ -102,7 +102,7 @@ void DeviceAgentVector::initUnboundBuffers() {
     unbound_host_buffer_size = copy_len;
     unbound_buffers_has_changed = true;  // Probably not required, but if they are being init, high chance they're going to be changed
 }
-void DeviceAgentVector::resizeUnboundBuffers(const unsigned int& new_capacity, bool init) {
+void DeviceAgentVector_t::resizeUnboundBuffers(const unsigned int& new_capacity, bool init) {
     // Resize to match agent_count
     for (auto& buff : unbound_buffers) {
         if (!buff.host) {
@@ -130,7 +130,7 @@ void DeviceAgentVector::resizeUnboundBuffers(const unsigned int& new_capacity, b
     unbound_buffers_has_changed = true;  // Probably not required, but if they are resized, high chance theyre going to change
 }
 
-void DeviceAgentVector::_insert(size_type pos, size_type count) {
+void DeviceAgentVector_t::_insert(size_type pos, size_type count) {
     // No unbound buffers, return
     if (unbound_buffers.empty() || !count)
         return;
@@ -184,7 +184,7 @@ void DeviceAgentVector::_insert(size_type pos, size_type count) {
         }
     }
 }
-void DeviceAgentVector::_erase(size_type pos, size_type count) {
+void DeviceAgentVector_t::_erase(size_type pos, size_type count) {
     // No unbound buffers, return
     if (unbound_buffers.empty() || !count)
         return;
@@ -228,7 +228,7 @@ void DeviceAgentVector::_erase(size_type pos, size_type count) {
 }
 
 
-void DeviceAgentVector::_changed(const std::string& variable_name, size_type pos) {
+void DeviceAgentVector_t::_changed(const std::string& variable_name, size_type pos) {
     // Check the variable exists
     auto var = agent->variables.find(variable_name);
     if (var == agent->variables.end()) {
@@ -247,7 +247,7 @@ void DeviceAgentVector::_changed(const std::string& variable_name, size_type pos
         change->second.second = change->second.second <= pos ? pos + 1 : change->second.second;
     }
 }
-void DeviceAgentVector::_changedAfter(const std::string& variable_name, size_type pos) {
+void DeviceAgentVector_t::_changedAfter(const std::string& variable_name, size_type pos) {
     // Check the variable exists
     auto var = agent->variables.find(variable_name);
     if (var == agent->variables.end()) {
