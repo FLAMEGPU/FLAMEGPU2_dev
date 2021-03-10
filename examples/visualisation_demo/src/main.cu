@@ -169,9 +169,8 @@ int main(int argc, const char ** argv) {
 #ifdef VISUALISATION
     ModelVis &m_vis = cuda_model.getVisualisation();
     {
-        const float INIT_CAM = 5.0f;
-        m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, INIT_CAM);
-        m_vis.setInitialCameraTarget(0, 0, 0);
+        m_vis.setInitialCameraLocation(6.28f, 39.9f, 94.8f);
+        m_vis.setInitialCameraTarget(6.28f + 0.536f, 39.9f - 0.233f, 94.8f - 0.812f);
         m_vis.setCameraSpeed(0.02f);
         m_vis.setSimulationSpeed(50);
     }
@@ -181,7 +180,7 @@ int main(int argc, const char ** argv) {
         vis_agent.setYVariable("location_y");
         // Position vars are named x, y so they are used by default
         vis_agent.setModel(Stock::Models::TEAPOT);
-        vis_agent.setModelScale(ENV_DIM/25.0f);
+        vis_agent.setModelScale(ENV_DIM/10.0f);
         // Draw outline of environment boundary
         auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
         v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(0, ENV_DIM, 0);
@@ -196,7 +195,7 @@ int main(int argc, const char ** argv) {
         vis_agent.setZVariable("location_z");
         // Position vars are named x, y, z so they are used by default
         vis_agent.setModel(Stock::Models::TEAPOT);
-        vis_agent.setModelScale(ENV_DIM / 25.0f);
+        vis_agent.setModelScale(ENV_DIM / 10.0f);
         // Draw outline of environment boundary
         auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
         // Bottom square
