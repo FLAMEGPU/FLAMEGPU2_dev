@@ -75,6 +75,35 @@ void DeviceAgentVector_t::syncChanges() {
     // Update CUDAAgent statelist size
     cuda_agent.setStateAgentCount(cuda_agent_state, _size);
 }
+void DeviceAgentVector_t::purgeCache() {
+    _size = cuda_agent.getStateSize(cuda_agent_state);
+    // Re-download all variable data from device
+    // @todo Delay this process until individual variable data is requested?
+    resize(_size, false);
+    for (const auto& v : agent->variables) {
+        // Copy back variable data into each array
+        void* host_dest = _data->at(v.first)->getDataPtr();
+        const void* device_src = cuda_agent.getStateVariablePtr(cuda_agent_state, v.first);
+        gpuErrchk(cudaMemcpy(host_dest, device_src, _size * v.second.type_size * v.second.elements, cudaMemcpyDeviceToHost));
+        // Default-init remaining buffer space
+        if (_capacity > _size) {
+            init(_size, _capacity);
+        }
+    }
+    // Free all host unbound buffers
+    // @todo This could be improved, by keeping buffers allocated, but marking them as requiring an update
+    // @todo That could save a free and malloc per buffer
+    {
+        for (auto& buff : unbound_buffers) {
+            if (buff.host)
+                free(buff.host);
+        }
+        unbound_buffers_has_changed = false;
+        known_device_buffer_size = cuda_agent.getStateSize(cuda_agent_state);
+        unbound_host_buffer_capacity = 0;
+        unbound_host_buffer_size + 0;
+    }
+}
 
 void DeviceAgentVector_t::initUnboundBuffers() {
     if (!_capacity)

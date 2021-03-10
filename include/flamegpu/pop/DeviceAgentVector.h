@@ -43,6 +43,10 @@ class DeviceAgentVector_t : protected AgentVector {
      * Copies changed agent data back to device
      */
     void syncChanges();
+    /**
+     * Clears the local cache, so data is re-downloaded from the device when next required
+     */
+    void purgeCache();
 
     // Expose AgentVector methods that work properly
     using AgentVector::at;

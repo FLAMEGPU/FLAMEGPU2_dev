@@ -257,6 +257,10 @@ InT HostAgentAPI::sum(const std::string &variable) const {
 template<typename InT, typename OutT>
 OutT HostAgentAPI::sum(const std::string &variable) const {
     static_assert(sizeof(InT) <= sizeof(OutT), "Template arg OutT should not be of a smaller size than InT");
+    if (population) {
+        // If the user has a DeviceAgentVector out, sync changes
+        population->syncChanges();
+    }
     const auto &agentDesc = agent.getAgentDescription();
 
     std::type_index typ = agentDesc.description->getVariableType(variable);  // This will throw name exception
@@ -288,6 +292,10 @@ OutT HostAgentAPI::sum(const std::string &variable) const {
 }
 template<typename InT>
 InT HostAgentAPI::min(const std::string &variable) const {
+    if (population) {
+        // If the user has a DeviceAgentVector out, sync changes
+        population->syncChanges();
+    }
     const auto &agentDesc = agent.getAgentDescription();
     const std::type_index typ = agentDesc.description->getVariableType(variable);  // This will throw name exception
     if (agentDesc.variables.at(variable).elements != 1) {
@@ -319,6 +327,10 @@ InT HostAgentAPI::min(const std::string &variable) const {
 }
 template<typename InT>
 InT HostAgentAPI::max(const std::string &variable) const {
+    if (population) {
+        // If the user has a DeviceAgentVector out, sync changes
+        population->syncChanges();
+    }
     const auto &agentDesc = agent.getAgentDescription();
     const std::type_index typ = agentDesc.description->getVariableType(variable);  // This will throw name exception
     if (agentDesc.variables.at(variable).elements != 1) {
@@ -350,6 +362,10 @@ InT HostAgentAPI::max(const std::string &variable) const {
 }
 template<typename InT>
 unsigned int HostAgentAPI::count(const std::string &variable, const InT &value) {
+    if (population) {
+        // If the user has a DeviceAgentVector out, sync changes
+        population->syncChanges();
+    }
     const auto &agentDesc = agent.getAgentDescription();
     const std::type_index typ = agentDesc.description->getVariableType(variable);  // This will throw name exception
     if (agentDesc.variables.at(variable).elements != 1) {
@@ -373,6 +389,10 @@ std::vector<unsigned int> HostAgentAPI::histogramEven(const std::string &variabl
 }
 template<typename InT, typename OutT>
 std::vector<OutT> HostAgentAPI::histogramEven(const std::string &variable, const unsigned int &histogramBins, const InT &lowerBound, const InT &upperBound) const {
+    if (population) {
+        // If the user has a DeviceAgentVector out, sync changes
+        population->syncChanges();
+    }
     if (lowerBound >= upperBound) {
         THROW InvalidArgument("lowerBound (%s) must be lower than < upperBound (%s) in HostAgentAPI::histogramEven().",
             std::to_string(lowerBound).c_str(), std::to_string(upperBound).c_str());
@@ -410,6 +430,10 @@ std::vector<OutT> HostAgentAPI::histogramEven(const std::string &variable, const
 }
 template<typename InT, typename reductionOperatorT>
 InT HostAgentAPI::reduce(const std::string &variable, reductionOperatorT /*reductionOperator*/, const InT &init) const {
+    if (population) {
+        // If the user has a DeviceAgentVector out, sync changes
+        population->syncChanges();
+    }
     const auto &agentDesc = agent.getAgentDescription();
     const std::type_index typ = agentDesc.description->getVariableType(variable);  // This will throw name exception
     if (agentDesc.variables.at(variable).elements != 1) {
@@ -443,6 +467,10 @@ InT HostAgentAPI::reduce(const std::string &variable, reductionOperatorT /*reduc
 }
 template<typename InT, typename OutT, typename transformOperatorT, typename reductionOperatorT>
 OutT HostAgentAPI::transformReduce(const std::string &variable, transformOperatorT /*transformOperator*/, reductionOperatorT /*reductionOperator*/, const OutT &init) const {
+    if (population) {
+        // If the user has a DeviceAgentVector out, sync changes
+        population->syncChanges();
+    }
     const auto &agentDesc = agent.getAgentDescription();
     const std::type_index typ = agentDesc.description->getVariableType(variable);  // This will throw name exception
     if (agentDesc.variables.at(variable).elements != 1) {
@@ -467,6 +495,10 @@ OutT HostAgentAPI::transformReduce(const std::string &variable, transformOperato
 
 template<typename VarT>
 void HostAgentAPI::sort(const std::string &variable, Order order, int beginBit, int endBit) {
+    if (population) {
+        // If the user has a DeviceAgentVector out, sync changes
+        population->syncChanges();
+    }
     const unsigned int streamId = 0;
     auto &scatter = api.agentModel.singletons->scatter;
     auto &scan = scatter.Scan();
@@ -516,11 +548,19 @@ void HostAgentAPI::sort(const std::string &variable, Order order, int beginBit, 
     }
     // Scatter all agent variables
     api.agentModel.agent_map.at(agentDesc.name)->scatterSort(stateName, scatter, streamId, 0);  // @todo use a per simulation stream?
+    if (population) {
+        // If the user has a DeviceAgentVector out, purge cache so it redownloads new data on next use
+        population->purgeCache();
+    }
 }
 
 
 template<typename Var1T, typename Var2T>
 void HostAgentAPI::sort(const std::string &variable1, Order order1, const std::string &variable2, Order order2) {
+    if (population) {
+        // If the user has a DeviceAgentVector out, sync changes
+        population->syncChanges();
+    }
     const unsigned int streamId = 0;
     auto &scatter = api.agentModel.singletons->scatter;
     auto &scan = scatter.Scan();
@@ -605,5 +645,10 @@ void HostAgentAPI::sort(const std::string &variable1, Order order1, const std::s
     }
     // Scatter all agent variables
     api.agentModel.agent_map.at(agentDesc.name)->scatterSort(stateName, scatter, streamId, 0);  // @todo - use simulation specific stream.
+
+    if (population) {
+        // If the user has a DeviceAgentVector out, purge cache so it redownloads new data on next use
+        population->purgeCache();
+    }
 }
 #endif  // INCLUDE_FLAMEGPU_RUNTIME_HOSTAGENTAPI_H_
