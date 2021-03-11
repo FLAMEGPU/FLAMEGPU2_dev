@@ -14,17 +14,9 @@ DeviceAgentVector_t::DeviceAgentVector_t(CUDAAgent& _cuda_agent, const std::stri
     // For each variable create an uninitialised array of variable data
     _size = known_device_buffer_size;
     resize(_size, false);
-    // @todo Delay this process until individual variable data is requested?
-    for (const auto& v : agent->variables) {
-        // Copy back variable data into each array
-        void *host_dest = _data->at(v.first)->getDataPtr();
-        const void *device_src = cuda_agent.getStateVariablePtr(cuda_agent_state, v.first);
-        gpuErrchk(cudaMemcpy(host_dest, device_src, _size * v.second.type_size * v.second.elements, cudaMemcpyDeviceToHost));
-        // Default-init remaining buffer space (Not currently used as earlier resize call is exact)
-        if (_capacity > _size) {
-            init(_size, _capacity);
-        }
-    }
+    // Mark all variables as Invalid
+    for (const auto& v : agent->variables)
+        invalid_variables.insert(v.first);
     // Grab the unbound variable buffers from the CUDAFatAgentStateList
     // Leave their host counterparts de-allocated until required
     {
@@ -57,9 +49,6 @@ void DeviceAgentVector_t::syncChanges() {
         gpuErrchk(cudaMemcpyAsync(device_dest + copy_offset, host_src + copy_offset, copy_len, cudaMemcpyHostToDevice, stream));
     }
     change_detail.clear();
-    for (const auto& v : agent->variables) {
-        // @todo Only copy changed data
-    }
     // Copy all unbound buffes
     if (unbound_buffers_has_changed) {
         if (unbound_host_buffer_size != _size) {
@@ -77,19 +66,9 @@ void DeviceAgentVector_t::syncChanges() {
 }
 void DeviceAgentVector_t::purgeCache() {
     _size = cuda_agent.getStateSize(cuda_agent_state);
-    // Re-download all variable data from device
-    // @todo Delay this process until individual variable data is requested?
-    resize(_size, false);
-    for (const auto& v : agent->variables) {
-        // Copy back variable data into each array
-        void* host_dest = _data->at(v.first)->getDataPtr();
-        const void* device_src = cuda_agent.getStateVariablePtr(cuda_agent_state, v.first);
-        gpuErrchk(cudaMemcpy(host_dest, device_src, _size * v.second.type_size * v.second.elements, cudaMemcpyDeviceToHost));
-        // Default-init remaining buffer space
-        if (_capacity > _size) {
-            init(_size, _capacity);
-        }
-    }
+    // All variables are now invalid
+    for (const auto& v : agent->variables)
+        invalid_variables.insert(v.first);
     // Free all host unbound buffers
     // @todo This could be improved, by keeping buffers allocated, but marking them as requiring an update
     // @todo That could save a free and malloc per buffer
@@ -101,7 +80,7 @@ void DeviceAgentVector_t::purgeCache() {
         unbound_buffers_has_changed = false;
         known_device_buffer_size = cuda_agent.getStateSize(cuda_agent_state);
         unbound_host_buffer_capacity = 0;
-        unbound_host_buffer_size + 0;
+        unbound_host_buffer_size = 0;
     }
 }
 
@@ -294,4 +273,51 @@ void DeviceAgentVector_t::_changedAfter(const std::string& variable_name, size_t
         // Exclusive max bound
         change->second.second = _size;
     }
+}
+void DeviceAgentVector_t::_require(const std::string& variable_name) const {
+    if (invalid_variables.find(variable_name) !=invalid_variables.end()) {
+        const auto& v = agent->variables.at(variable_name);
+        // Copy back variable data into array
+        void* host_dest = _data->at(variable_name)->getDataPtr();
+        const void* device_src = cuda_agent.getStateVariablePtr(cuda_agent_state, variable_name);
+        gpuErrchk(cudaMemcpyAsync(host_dest, device_src, _size * v.type_size * v.elements, cudaMemcpyDeviceToHost, stream));
+        if (_capacity > _size) {
+            const auto& v = agent->variables.at(variable_name);
+            // Default-init remaining buffer space
+            const auto it = _data->find(variable_name);
+            const size_t variable_size = v.type_size * v.elements;
+            char* t_data = static_cast<char*>(it->second->getDataPtr());
+            for (unsigned int i = _size; i < _capacity; ++i) {
+                memcpy(t_data + i * variable_size, v.default_value, variable_size);
+            }
+        }
+        // The invalid variable is now current
+        invalid_variables.erase(variable_name);
+        gpuErrchk(cudaStreamSynchronize(stream));
+    }
+}
+void DeviceAgentVector_t::_requireAll() const {
+    for (const auto& vn : invalid_variables) {
+        const auto &v = agent->variables.at(vn);
+        // Copy back variable data into array
+        void* host_dest = _data->at(vn)->getDataPtr();
+        const void* device_src = cuda_agent.getStateVariablePtr(cuda_agent_state, vn);
+        gpuErrchk(cudaMemcpyAsync(host_dest, device_src, _size * v.type_size * v.elements, cudaMemcpyDeviceToHost, stream));
+    }
+    // Perform the cuda ops in a separate loop to host inits, gives a slight bit of time to eat latency
+    for (const auto& vn : invalid_variables) {
+        if (_capacity > _size) {
+            const auto& v = agent->variables.at(vn);
+            // Default-init remaining buffer space
+            const auto it = _data->find(vn);
+            const size_t variable_size = v.type_size * v.elements;
+            char* t_data = static_cast<char*>(it->second->getDataPtr());
+            for (unsigned int i = _size; i < _capacity; ++i) {
+                memcpy(t_data + i * variable_size, v.default_value, variable_size);
+            }
+        }
+    }
+    // All invalid variables are now current
+    invalid_variables.clear();
+    gpuErrchk(cudaStreamSynchronize(stream));
 }

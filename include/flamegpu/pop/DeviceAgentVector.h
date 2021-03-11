@@ -6,6 +6,7 @@
 #include <memory>
 #include <list>
 #include <map>
+#include <set>
 
 #include "flamegpu/pop/AgentVector.h"
 #include "flamegpu/gpu/CUDAFatAgentStateList.h"
@@ -102,32 +103,50 @@ class DeviceAgentVector_t : protected AgentVector {
     /**
      * Triggered when insert() has been called
      */
-     void _insert(size_type pos, size_type count) override;
-     /**
-      * Triggered when erase() has been called
-      */
-     void _erase(size_type pos, size_type count) override;
-     /**
-      * Useful for notifying changes due when a single agent variable has been updated (AgentVector::Agent::setVariable())
-      * @param variable_name Name of the variable that has been changed
-      * @param pos The index of the agent that's variable has been changed
-      */
-     void _changed(const std::string& variable_name, size_type pos) override;
-     /**
-      * Useful for notifying changes due to inserting/removing items, which essentially move all trailing items
-      * @param variable_name Name of the variable that has been changed
-      * @param pos The first index that has been changed
-      */
-     void _changedAfter(const std::string& variable_name, size_type pos) override;
-     /**
-      * Store information regarding which variables have been changed
-      * This map is built as changes come in, it is empty if no changes have been made
-      */
-     std::map<std::string, std::pair<size_type, size_type>> change_detail;
-     /**
-      * Store information regarding which variables have been changed
-      * This map is built as changes come in, it is empty if no changes have been made
-      */
+    void _insert(size_type pos, size_type count) override;
+    /**
+     * Triggered when erase() has been called
+     */
+    void _erase(size_type pos, size_type count) override;
+    /**
+     * Useful for notifying changes due when a single agent variable has been updated (AgentVector::Agent::setVariable())
+     * @param variable_name Name of the variable that has been changed
+     * @param pos The index of the agent that's variable has been changed
+     */
+    void _changed(const std::string& variable_name, size_type pos) override;
+    /**
+     * Useful for notifying changes due to inserting/removing items, which essentially move all trailing items
+     * @param variable_name Name of the variable that has been changed
+     * @param pos The first index that has been changed
+     */
+    void _changedAfter(const std::string& variable_name, size_type pos) override;
+    /**
+     * Notify this that a variable is about to be accessed, to allow it's data to be synced
+     * Should be called by operations which update variables (e.g. AgentVector::Agent::getVariable())
+     * @param variable_name Name of the variable that has been changed
+     */
+    void _require(const std::string& variable_name) const override;
+    /**
+     * Notify this that all variables are about to be accessed
+     * Should be called by operations which move agents (e.g. insert/erase)
+     * @note This is not called in conjunction with _insert() or _erase()
+     */
+    void _requireAll() const override;
+    /**
+     * Store information regarding which variables have been changed
+     * This map is built as changes come in, it is empty if no changes have been made
+     */
+    std::map<std::string, std::pair<size_type, size_type>> change_detail;
+    /**
+     * Variables included here require data to be updated from the device
+     * @note Mutable, because it must be updated by _requires(), _requiresAll() which are const
+     *       as they can be called by const user methods
+     */
+    mutable std::set<std::string> invalid_variables;
+    /**
+     * Store information regarding which variables have been changed
+     * This map is built as changes come in, it is empty if no changes have been made
+     */
     bool unbound_buffers_has_changed;
 
  private:

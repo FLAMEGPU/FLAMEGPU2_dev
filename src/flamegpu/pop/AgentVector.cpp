@@ -88,7 +88,7 @@ AgentVector::CAgent AgentVector::at(size_type pos) const {
     if (pos >= size()) {
         THROW OutOfBoundsException("pos (%u) exceeds length of vector (%u) in AgentVector::at()", pos, size());
     }
-    return CAgent(agent, _data, pos);
+    return CAgent(const_cast<AgentVector*>(this), agent, _data, pos);
 }
 
 AgentVector::Agent AgentVector::operator[](size_type pos) {
@@ -122,6 +122,7 @@ void* AgentVector::data(const std::string& variable_name) {
     // Does the map have a vector
     const auto& map_it = _data->find(variable_name);
     if (map_it != _data->end()) {
+        _require(variable_name);
         _changedAfter(variable_name, 0);
         return map_it->second->getDataPtr();
     }
@@ -137,8 +138,10 @@ const void* AgentVector::data(const std::string& variable_name) const {
     }
     // Does the map have a vector
     const auto& map_it = _data->find(variable_name);
-    if (map_it != _data->end())
+    if (map_it != _data->end()) {
+        _require(variable_name);
         return map_it->second->getDataPtr();
+    }
     return nullptr;
 }
 
@@ -146,37 +149,37 @@ AgentVector::iterator AgentVector::begin() noexcept {
     return iterator(this, agent, _data, 0);
 }
 AgentVector::const_iterator AgentVector::begin() const noexcept {
-    return const_iterator(agent, _data, 0);
+    return const_iterator(const_cast<AgentVector*>(this), agent, _data, 0);
 }
 AgentVector::const_iterator AgentVector::cbegin() const noexcept {
-    return const_iterator(agent, _data, 0);
+    return const_iterator(const_cast<AgentVector*>(this), agent, _data, 0);
 }
 AgentVector::iterator AgentVector::end() noexcept {
     return iterator(this, agent, _data, _size);
 }
 AgentVector::const_iterator AgentVector::end() const noexcept {
-    return const_iterator(agent, _data, _size);
+    return const_iterator(const_cast<AgentVector*>(this), agent, _data, _size);
 }
 AgentVector::const_iterator AgentVector::cend() const noexcept {
-    return const_iterator(agent, _data, _size);
+    return const_iterator(const_cast<AgentVector*>(this), agent, _data, _size);
 }
 AgentVector::reverse_iterator AgentVector::rbegin() noexcept {
     return reverse_iterator(this, agent, _data, _size - 1);
 }
 AgentVector::const_reverse_iterator AgentVector::rbegin() const noexcept {
-    return const_reverse_iterator(agent, _data, _size-1);
+    return const_reverse_iterator(const_cast<AgentVector*>(this), agent, _data, _size-1);
 }
 AgentVector::const_reverse_iterator AgentVector::crbegin() const noexcept {
-    return const_reverse_iterator(agent, _data, _size-1);
+    return const_reverse_iterator(const_cast<AgentVector*>(this), agent, _data, _size-1);
 }
 AgentVector::reverse_iterator AgentVector::rend() noexcept {
     return reverse_iterator(this, agent, _data, std::numeric_limits<size_type>::max());
 }
 AgentVector::const_reverse_iterator AgentVector::rend() const noexcept {
-    return const_reverse_iterator(agent, _data, std::numeric_limits<size_type>::max());
+    return const_reverse_iterator(const_cast<AgentVector*>(this), agent, _data, std::numeric_limits<size_type>::max());
 }
 AgentVector::const_reverse_iterator AgentVector::crend() const noexcept {
-    return const_reverse_iterator(agent, _data, std::numeric_limits<size_type>::max());
+    return const_reverse_iterator(const_cast<AgentVector*>(this), agent, _data, std::numeric_limits<size_type>::max());
 }
 
 bool AgentVector::empty() const { return _size == 0; }
@@ -255,6 +258,7 @@ AgentVector::iterator AgentVector::insert(size_type pos, size_type count, const 
         }
         resize(new_capacity, true);
     }
+    _requireAll();
     // Get first index;
     const size_type insert_index = pos;
     // Fix each variable
@@ -301,6 +305,7 @@ AgentVector::iterator AgentVector::insert(size_type pos, size_type count, const 
         }
         resize(new_capacity, true);
     }
+    _requireAll();
     // Get first index;
     const size_type insert_index = pos;
     // Fix each variable
@@ -372,6 +377,7 @@ AgentVector::iterator AgentVector::erase(size_type first, size_type last) {
             "it must point to after the final selected item, "
             "in AgentVector::erase()\n", first_move_index);
     }
+    _requireAll();
     // Fix each variable
     for (const auto& v : agent->variables) {
         const auto it = _data->find(v.first);
@@ -476,6 +482,7 @@ bool AgentVector::operator==(const AgentVector& other) const {
         return false;
     if (*agent != *other.agent)
         return false;
+    _requireAll();
     for (const auto& v : agent->variables) {
         const auto it_a = _data->find(v.first);
         const auto it_b = other._data->find(v.first);
@@ -514,11 +521,11 @@ AgentVector::Agent AgentVector::iterator::operator*() const {
     return Agent(_parent, _agent, _data, _pos);
 }
 AgentVector::CAgent AgentVector::const_iterator::operator*() const {
-    return CAgent(_agent, _data, _pos);
+    return CAgent(_parent, _agent, _data, _pos);
 }
 AgentVector::Agent AgentVector::reverse_iterator::operator*() const {
     return Agent(_parent, _agent, _data, _pos);
 }
 AgentVector::CAgent AgentVector::const_reverse_iterator::operator*() const {
-    return CAgent(_agent, _data, _pos);
+    return CAgent(_parent, _agent, _data, _pos);
 }

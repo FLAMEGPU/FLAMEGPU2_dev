@@ -46,7 +46,7 @@ class AgentVector_CAgent {
     /**
      * Constructor, only ever called by AgentVector
      */
-    AgentVector_CAgent(const std::shared_ptr<const AgentData> &agent, const std::weak_ptr<AgentVector::AgentDataMap> &data, AgentVector::size_type pos);
+    AgentVector_CAgent(AgentVector* parent, const std::shared_ptr<const AgentData> &agent, const std::weak_ptr<AgentVector::AgentDataMap> &data, AgentVector::size_type pos);
     /**
      * Index within _data
      */
@@ -59,6 +59,12 @@ class AgentVector_CAgent {
      * Copy of agent definition
      */
     std::shared_ptr<const AgentData> _agent;
+    /**
+     * Raw pointer to the parent AgentVector
+     * This should not be accessed unless _data can be locked!!
+     * It only exists here so that change tracking methods can be called
+     */
+    AgentVector * const _parent;
 };
 
 /**
@@ -114,12 +120,6 @@ class AgentVector_Agent : public AgentVector_CAgent {
      * Constructor, only ever called by AgentVector
      */
     AgentVector_Agent(AgentVector* parent, const std::shared_ptr<const AgentData> &agent, const std::weak_ptr<AgentVector::AgentDataMap> &data, AgentVector::size_type pos);
-    /**
-     * Raw pointer to the parent AgentVector
-     * This should not be accessed unless _data can be locked!!
-     * It only exists here so that change tracking methods can be called
-     */
-    AgentVector* _parent;
 };
 
 template <typename T>
@@ -147,6 +147,7 @@ void AgentVector_Agent::setVariable(const std::string &variable_name, const T &v
             "in AgentVector_Agent::setVariable().",
             variable_name.c_str(), v_buff->getType().name(), typeid(T).name());
     }
+    _parent->_require(variable_name);
     // do the replace
     static_cast<T*>(v_buff->getDataPtr())[index] = value;
     // Notify (_data was locked above)
@@ -177,6 +178,7 @@ void AgentVector_Agent::setVariable(const std::string &variable_name, const std:
             "in AgentVector_Agent::setVariable().",
             variable_name.c_str(), v_buff->getType().name(), typeid(T).name());
     }
+    _parent->_require(variable_name);
     memcpy(static_cast<T*>(v_buff->getDataPtr()) + (index * N), value.data(), sizeof(T) * N);
     // Notify (_data was locked above)
     _parent->_changed(variable_name, index);
@@ -206,6 +208,7 @@ void AgentVector_Agent::setVariable(const std::string &variable_name, const unsi
             "in AgentVector_Agent::setVariable().",
             array_index, v_buff->getElements(), variable_name.c_str());
     }
+    _parent->_require(variable_name);
     static_cast<T*>(v_buff->getDataPtr())[(index * v_buff->getElements()) + array_index] = value;
 }
 #ifdef SWIG
@@ -234,6 +237,7 @@ void AgentVector_Agent::setVariableArray(const std::string &variable_name, const
             "in AgentVector_Agent::setVariableArray().",
             variable_name.c_str(), v_buff->getType().name(), typeid(T).name());
     }
+    _parent->_require(variable_name);
     memcpy(static_cast<T*>(v_buff->getDataPtr()) + (index * v_buff->getElements()), value.data(), sizeof(T) * v_buff->getElements());
     // Notify (_data was locked above)
     _parent->_changed(variable_name, index);
@@ -265,6 +269,7 @@ T AgentVector_CAgent::getVariable(const std::string &variable_name) const {
             "in AgentVector_Agent::getVariable().",
             variable_name.c_str(), v_buff->getType().name(), typeid(T).name());
     }
+    _parent->_require(variable_name);
     return static_cast<const T*>(v_buff->getReadOnlyDataPtr())[index];
 }
 template <typename T, unsigned int N>
@@ -292,6 +297,7 @@ std::array<T, N> AgentVector_CAgent::getVariable(const std::string &variable_nam
             "in AgentVector_Agent::getVariable().",
             variable_name.c_str(), v_buff->getType().name(), typeid(T).name());
     }
+    _parent->_require(variable_name);
     std::array<T, N> rtn;
     memcpy(rtn.data(), static_cast<const T*>(v_buff->getReadOnlyDataPtr()) + (index * N), sizeof(T) * N);
     return rtn;
@@ -321,6 +327,7 @@ T AgentVector_CAgent::getVariable(const std::string &variable_name, const unsign
             "in AgentVector_Agent::getVariable().",
             variable_name.c_str(), v_buff->getType().name(), typeid(T).name());
     }
+    _parent->_require(variable_name);
     return static_cast<const T*>(v_buff->getReadOnlyDataPtr())[(index * v_buff->getElements()) + array_index];
 }
 #ifdef SWIG
@@ -344,6 +351,7 @@ std::vector<T> AgentVector_CAgent::getVariableArray(const std::string& variable_
             "in AgentVector_Agent::getVariableArray().",
             variable_name.c_str(), v_buff->getType().name(), typeid(T).name());
     }
+    _parent->_require(variable_name);
     std::vector<T> rtn(static_cast<size_t>(v_buff->getElements()));
     memcpy(rtn.data(), static_cast<T*>(v_buff->getDataPtr()) + (index * v_buff->getElements()), sizeof(T) * v_buff->getElements());
     return rtn;
