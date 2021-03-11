@@ -138,8 +138,38 @@ int main(int argc, const char ** argv) {
         env.newProperty<float, 3>("direction3d_envmin", std::array<float, 3>{ENV_DIM + ENV_GAP, 0, 0});
         env.newProperty<float, 3>("direction3d_envmax", std::array<float, 3>{2 * ENV_DIM + ENV_GAP, ENV_DIM, ENV_DIM});
     }
-    AgentVector pop_direction3d(model.Agent("direction3d"), 25);
+    //AgentVector pop_direction3d(model.Agent("direction3d"), 25);
+    //{
+    //    std::uniform_real_distribution<float> location_dist(0.0f, ENV_DIM);
+    //    std::uniform_real_distribution<float> speed_dist(ENV_DIM / 600.0f, ENV_DIM / 300.0f);  // Cross the environment in 5-10 seconds
+    //    std::uniform_real_distribution<float> direction_dist(-1.0f, 1.0f);
+    //    // Scatter all agents in the square
+    //    for (auto agent : pop_direction3d) {
+    //        agent.setVariable<float>("location_x", location_dist(rng));
+    //        agent.setVariable<float>("location_y", location_dist(rng));
+    //        agent.setVariable<float>("location_z", location_dist(rng));
+    //        glm::vec3 velocity = normalize(glm::vec3(direction_dist(rng), direction_dist(rng), direction_dist(rng))) * speed_dist(rng);
+    //        agent.setVariable<float>("velocity_x", velocity.x);
+    //        agent.setVariable<float>("velocity_y", velocity.y);
+    //        agent.setVariable<float>("velocity_z", velocity.z);
+    //    }
+    //}
+    AgentVector pop_direction3d(model.Agent("direction3d"), 10 * 10 * 10);
     {
+        for (int x = 0; x < 10 ; ++x) {
+            for (int y = 0; y < 10; ++y) {
+                for (int z = 0;z < 10; ++z) {
+                    auto agent = pop_direction3d[x + (y * 10) + (z * 10 * 10)];
+                    agent.setVariable<float>("location_x", 0 + x * (ENV_DIM / 10.0f));
+                    agent.setVariable<float>("location_y", 0 + y * (ENV_DIM / 10.0f));
+                    agent.setVariable<float>("location_z", 0 + z * (ENV_DIM / 10.0f));
+                    
+                    agent.setVariable<float>("velocity_x", velocity.x);
+                    agent.setVariable<float>("velocity_y", velocity.y);
+                    agent.setVariable<float>("velocity_z", velocity.z);
+                }
+            }
+        }
         std::uniform_real_distribution<float> location_dist(0.0f, ENV_DIM);
         std::uniform_real_distribution<float> speed_dist(ENV_DIM / 600.0f, ENV_DIM / 300.0f);  // Cross the environment in 5-10 seconds
         std::uniform_real_distribution<float> direction_dist(-1.0f, 1.0f);
