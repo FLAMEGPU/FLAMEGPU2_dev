@@ -23,6 +23,7 @@ DeviceAgentVector_t::DeviceAgentVector_t(CUDAAgent& _cuda_agent, const std::stri
         const auto buffs = cuda_agent.getUnboundVariableBuffers(cuda_agent_state);
         for (auto &d_buff : buffs)
             unbound_buffers.emplace_back(d_buff);
+        unbound_host_buffer_invalid = true;
     }
 }
 
@@ -69,19 +70,11 @@ void DeviceAgentVector_t::purgeCache() {
     // All variables are now invalid
     for (const auto& v : agent->variables)
         invalid_variables.insert(v.first);
-    // Free all host unbound buffers
-    // @todo This could be improved, by keeping buffers allocated, but marking them as requiring an update
-    // @todo That could save a free and malloc per buffer
-    {
-        for (auto& buff : unbound_buffers) {
-            if (buff.host)
-                free(buff.host);
-        }
-        unbound_buffers_has_changed = false;
-        known_device_buffer_size = cuda_agent.getStateSize(cuda_agent_state);
-        unbound_host_buffer_capacity = 0;
-        unbound_host_buffer_size = 0;
-    }
+    // Mark all unbound host buffers as requiring update
+    unbound_host_buffer_invalid = false;
+    unbound_host_buffer_size = 0;
+    known_device_buffer_size = cuda_agent.getStateSize(cuda_agent_state);
+    unbound_buffers_has_changed = false;
 }
 
 void DeviceAgentVector_t::initUnboundBuffers() {
@@ -109,6 +102,38 @@ void DeviceAgentVector_t::initUnboundBuffers() {
     unbound_host_buffer_capacity = _capacity;
     unbound_host_buffer_size = copy_len;
     unbound_buffers_has_changed = true;  // Probably not required, but if they are being init, high chance they're going to be changed
+    unbound_host_buffer_invalid = false;
+}
+void DeviceAgentVector_t::reinitUnboundBuffers() {
+    const unsigned int device_len = cuda_agent.getStateSize(cuda_agent_state);
+    const unsigned int copy_len = _size;
+    if (device_len > _size) {
+        THROW InvalidOperation("Unexpected state, in DeviceAgentVector::reinitUnboundBuffers()\n");
+    }
+    // Resize to match _capacity
+    for (auto& buff : unbound_buffers) {
+        if (!buff.host) {
+            THROW InvalidOperation("Host buffer is not already allocated, in DeviceAgentVector::reinitUnboundBuffers().\n");
+        }
+        const size_t var_size = buff.device->type_size * buff.device->elements;
+        if (unbound_host_buffer_capacity < _capacity) {
+            free(buff.host);
+            // Alloc
+            buff.host = static_cast<char*>(malloc(_capacity * var_size));
+        }
+        // DtH memcpy
+        gpuErrchk(cudaMemcpyAsync(buff.host, buff.device->data, copy_len * var_size, cudaMemcpyDeviceToHost, stream));
+        // Not sure this will ever happen, but better safe
+        for (unsigned int i = device_len; i < _size; ++i) {
+            // We have unknown agents, default init them
+            memcpy(buff.host + i * var_size, buff.device->default_value, var_size);
+        }
+    }
+    gpuErrchk(cudaStreamSynchronize(stream));
+    unbound_host_buffer_capacity = unbound_host_buffer_capacity < _capacity ?_capacity : unbound_host_buffer_capacity;
+    unbound_host_buffer_size = copy_len;
+    unbound_buffers_has_changed = true;  // Probably not required, but if they are being init, high chance they're going to be changed
+    unbound_host_buffer_invalid = false;
 }
 void DeviceAgentVector_t::resizeUnboundBuffers(const unsigned int& new_capacity, bool init) {
     // Resize to match agent_count
@@ -158,6 +183,10 @@ void DeviceAgentVector_t::_insert(size_type pos, size_type count) {
             }
         }
     }
+    if (unbound_host_buffer_invalid) {
+        // Redownload unbound buffers from device
+        reinitUnboundBuffers();
+    }
     //  Move all items behind pos, then init all the newly inserted
     for (auto& buff : unbound_buffers) {
         const size_t variable_size = buff.device->type_size * buff.device->elements;
@@ -199,6 +228,10 @@ void DeviceAgentVector_t::_erase(size_type pos, size_type count) {
     // Unbound buffers first use, init
     if (!unbound_host_buffer_capacity)
         initUnboundBuffers();
+    if (unbound_host_buffer_invalid) {
+        // Redownload unbound buffers from device
+        reinitUnboundBuffers();
+    }
     const size_type new_size = known_device_buffer_size - count;
     const size_type copy_start = pos + count;
     for (auto& buff : unbound_buffers) {

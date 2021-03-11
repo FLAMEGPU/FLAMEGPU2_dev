@@ -205,10 +205,21 @@ class DeviceAgentVector_t : protected AgentVector {
     unsigned int unbound_host_buffer_size = 0;
     unsigned int unbound_host_buffer_capacity = 0;
     /**
+     * This is set true by clearCache()
+     * If data has been re-ordered on the device, the host buffers will be out of sync
+     * At next insert/erase, this tells host buffers to download new
+     * It also tells a future call to sync, to ignore the unbound host buffers
+     */
+    bool unbound_host_buffer_invalid = false;
+    /**
      * Initialises the host copies of the unbound buffers
      * Allocates the host copy, and copies device data to them
      */
     void initUnboundBuffers();
+    /**
+     * Re-downloads updates the host unbound buffers from the device
+     */
+    void reinitUnboundBuffers();
     /**
      * Resizes the host copy of the unbound buffers, retaining data
      * @param new_capacity New buffer capacity
