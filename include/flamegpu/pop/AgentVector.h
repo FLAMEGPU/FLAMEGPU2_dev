@@ -627,7 +627,9 @@ AgentVector::iterator AgentVector::insert(size_type pos, InputIt first, InputIt 
         THROW ExpiredWeakPtr("The AgentVector which owns the passed iterators has been deallocated, "
             "in AgentVector::insert().\n");
     }
-    _requireAll();
+    // If we are not appending, ensure we have upto date device data
+    if (pos < _size)
+        _requireAll();
     for (const auto& v : agent->variables) {
         const auto it = _data->find(v.first);
         char* t_data = static_cast<char*>(it->second->getDataPtr());

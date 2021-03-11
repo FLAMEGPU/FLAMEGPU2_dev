@@ -258,7 +258,9 @@ AgentVector::iterator AgentVector::insert(size_type pos, size_type count, const 
         }
         resize(new_capacity, true);
     }
-    _requireAll();
+    // If we are not appending, ensure we have upto date device data
+    if (pos < _size)
+      _requireAll();
     // Get first index;
     const size_type insert_index = pos;
     // Fix each variable
@@ -305,7 +307,9 @@ AgentVector::iterator AgentVector::insert(size_type pos, size_type count, const 
         }
         resize(new_capacity, true);
     }
-    _requireAll();
+    // If we are not appending, ensure we have upto date device data
+    if (pos < _size)
+        _requireAll();
     // Get first index;
     const size_type insert_index = pos;
     // Fix each variable
@@ -377,7 +381,9 @@ AgentVector::iterator AgentVector::erase(size_type first, size_type last) {
             "it must point to after the final selected item, "
             "in AgentVector::erase()\n", first_move_index);
     }
-    _requireAll();
+    // If we are not erasing from the end, ensure we have upto date device data
+    if (first_move_index != _size)
+        _requireAll();
     // Fix each variable
     for (const auto& v : agent->variables) {
         const auto it = _data->find(v.first);
