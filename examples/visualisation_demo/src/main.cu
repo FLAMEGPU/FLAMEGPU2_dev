@@ -3,6 +3,7 @@
 // Can't just wrap the include, as everywhere the affected functions are used triggers the warning.
 #pragma diag_suppress = esa_on_defaulted_function_ignored
 #include "../flamegpu2_visualiser-build/glm-src/glm/glm.hpp"  // Cheaty access to GLM
+#include "../flamegpu2_visualiser-build/glm-src/glm/ext/scalar_constants.hpp"
 
 FLAMEGPU_AGENT_FUNCTION(direction2d_update, MsgNone, MsgNone) {
     glm::vec2 loc = glm::vec2(FLAMEGPU->getVariable<float>("location_x"), FLAMEGPU->getVariable<float>("location_y"));
@@ -69,12 +70,12 @@ FLAMEGPU_AGENT_FUNCTION(direction3d_update, MsgNone, MsgNone) {
         loc.z = env_max.z - (loc.z - env_max.z);
     }
     // Update values
-    FLAMEGPU->setVariable<float>("location_x", loc.x);
-    FLAMEGPU->setVariable<float>("location_y", loc.y);
-    FLAMEGPU->setVariable<float>("location_z", loc.z);
-    FLAMEGPU->setVariable<float>("velocity_x", vel.x);
-    FLAMEGPU->setVariable<float>("velocity_y", vel.y);
-    FLAMEGPU->setVariable<float>("velocity_z", vel.z);
+    //FLAMEGPU->setVariable<float>("location_x", loc.x);
+    //FLAMEGPU->setVariable<float>("location_y", loc.y);
+    //FLAMEGPU->setVariable<float>("location_z", loc.z);
+    //FLAMEGPU->setVariable<float>("velocity_x", vel.x);
+    //FLAMEGPU->setVariable<float>("velocity_y", vel.y);
+    //FLAMEGPU->setVariable<float>("velocity_z", vel.z);
     return ALIVE;
 }
 
@@ -154,34 +155,31 @@ int main(int argc, const char ** argv) {
     //        agent.setVariable<float>("velocity_z", velocity.z);
     //    }
     //}
-    AgentVector pop_direction3d(model.Agent("direction3d"), 10 * 10 * 10);
+    AgentVector pop_direction3d(model.Agent("direction3d"), 11 * 11 * 11);
     {
-        for (int x = 0; x < 10 ; ++x) {
-            for (int y = 0; y < 10; ++y) {
-                for (int z = 0;z < 10; ++z) {
-                    auto agent = pop_direction3d[x + (y * 10) + (z * 10 * 10)];
-                    agent.setVariable<float>("location_x", 0 + x * (ENV_DIM / 10.0f));
-                    agent.setVariable<float>("location_y", 0 + y * (ENV_DIM / 10.0f));
-                    agent.setVariable<float>("location_z", 0 + z * (ENV_DIM / 10.0f));
-                    
-                    agent.setVariable<float>("velocity_x", velocity.x);
-                    agent.setVariable<float>("velocity_y", velocity.y);
-                    agent.setVariable<float>("velocity_z", velocity.z);
+        const int CT = 10;
+        for (int x = 0; x <= CT; ++x) {
+            //float tx = (x/static_cast<float>(CT)) * glm::pi<float>();
+            for (int y = 0; y <= CT; ++y) {
+            //int y = 3;
+            //int z = 5;
+          //{{
+                for (int z = 0;z <= CT; ++z) {
+                    auto agent = pop_direction3d[x + (y * 11) + (z * 11 * 11)];
+                    //auto agent = pop_direction3d[x];
+                    agent.setVariable<float>("location_x", ENV_DIM + ENV_GAP + (x * (ENV_DIM / 10.0f)));
+                    agent.setVariable<float>("location_y", y * (ENV_DIM / 10.0f));
+                    agent.setVariable<float>("location_z", z * (ENV_DIM / 10.0f));
+                    glm::vec3 t = glm::vec3(
+                        (2 * x / static_cast<float>(CT)) - 1,
+                        (2 * y / static_cast<float>(CT)) - 1, 
+                        (2 * z / static_cast<float>(CT)) - 1);
+                    t = glm::normalize(t);
+                    agent.setVariable<float>("velocity_x", t.x);
+                    agent.setVariable<float>("velocity_y", t.y);
+                    agent.setVariable<float>("velocity_z", t.z);
                 }
             }
-        }
-        std::uniform_real_distribution<float> location_dist(0.0f, ENV_DIM);
-        std::uniform_real_distribution<float> speed_dist(ENV_DIM / 600.0f, ENV_DIM / 300.0f);  // Cross the environment in 5-10 seconds
-        std::uniform_real_distribution<float> direction_dist(-1.0f, 1.0f);
-        // Scatter all agents in the square
-        for (auto agent : pop_direction3d) {
-            agent.setVariable<float>("location_x", location_dist(rng));
-            agent.setVariable<float>("location_y", location_dist(rng));
-            agent.setVariable<float>("location_z", location_dist(rng));
-            glm::vec3 velocity = normalize(glm::vec3(direction_dist(rng), direction_dist(rng), direction_dist(rng))) * speed_dist(rng);
-            agent.setVariable<float>("velocity_x", velocity.x);
-            agent.setVariable<float>("velocity_y", velocity.y);
-            agent.setVariable<float>("velocity_z", velocity.z);
         }
     }
 
@@ -205,21 +203,21 @@ int main(int argc, const char ** argv) {
         m_vis.setSimulationSpeed(50);
     }
     {
-        auto & vis_agent = m_vis.addAgent("direction2d");
-        vis_agent.setXVariable("location_x");
-        vis_agent.setYVariable("location_y");
-        vis_agent.setDirectionXVariable("velocity_x");
-        vis_agent.setDirectionYVariable("velocity_y");
-        // Position vars are named x, y so they are used by default
-        vis_agent.setModel(Stock::Models::TEAPOT);
-        vis_agent.setModelScale(ENV_DIM / 10.0f);
-        vis_agent.setColor(ViridisInterpolation("location_y", 0, ENV_DIM));
-        // Draw outline of environment boundary
-        auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
-        v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(0, ENV_DIM, 0);
-        v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(ENV_DIM, 0, 0);
-        v_boundary.addVertex(ENV_DIM, 0, 0); v_boundary.addVertex(ENV_DIM, ENV_DIM, 0);
-        v_boundary.addVertex(0, ENV_DIM, 0); v_boundary.addVertex(ENV_DIM, ENV_DIM, 0);
+        //auto & vis_agent = m_vis.addAgent("direction2d");
+        //vis_agent.setXVariable("location_x");
+        //vis_agent.setYVariable("location_y");
+        //vis_agent.setDirectionXVariable("velocity_x");
+        //vis_agent.setDirectionYVariable("velocity_y");
+        //// Position vars are named x, y so they are used by default
+        //vis_agent.setModel(Stock::Models::TEAPOT);
+        //vis_agent.setModelScale(ENV_DIM / 10.0f);
+        //vis_agent.setColor(ViridisInterpolation("location_y", 0, ENV_DIM));
+        //// Draw outline of environment boundary
+        //auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
+        //v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(0, ENV_DIM, 0);
+        //v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(ENV_DIM, 0, 0);
+        //v_boundary.addVertex(ENV_DIM, 0, 0); v_boundary.addVertex(ENV_DIM, ENV_DIM, 0);
+        //v_boundary.addVertex(0, ENV_DIM, 0); v_boundary.addVertex(ENV_DIM, ENV_DIM, 0);
     }
     {
         auto& vis_agent = m_vis.addAgent("direction3d");
