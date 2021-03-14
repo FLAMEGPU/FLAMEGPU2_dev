@@ -210,7 +210,7 @@ int main(int argc, const char ** argv) {
         vis_agent.setForwardXVariable("velocity_x");
         vis_agent.setForwardYVariable("velocity_y");
         // Position vars are named x, y so they are used by default
-        vis_agent.setModel(Stock::Models::TEAPOT);
+        vis_agent.setModel(Stock::Models::PAPERPLANE);
         vis_agent.setModelScale(ENV_DIM / 10.0f);
         vis_agent.setColor(ViridisInterpolation("location_y", 0, ENV_DIM));
         // Draw outline of environment boundary
