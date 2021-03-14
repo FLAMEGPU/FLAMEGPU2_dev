@@ -174,7 +174,8 @@ int main(int argc, const char ** argv) {
                         (2 * x / static_cast<float>(CT)) - 1,
                         (2 * y / static_cast<float>(CT)) - 1, 
                         (2 * z / static_cast<float>(CT)) - 1);
-                    t = glm::normalize(t);
+                    //t = glm::normalize(t);
+                    //t = glm::vec3(0);
                     agent.setVariable<float>("velocity_x", t.x);
                     agent.setVariable<float>("velocity_y", t.y);
                     agent.setVariable<float>("velocity_z", t.z);
@@ -203,30 +204,30 @@ int main(int argc, const char ** argv) {
         m_vis.setSimulationSpeed(50);
     }
     {
-        //auto & vis_agent = m_vis.addAgent("direction2d");
-        //vis_agent.setXVariable("location_x");
-        //vis_agent.setYVariable("location_y");
-        //vis_agent.setDirectionXVariable("velocity_x");
-        //vis_agent.setDirectionYVariable("velocity_y");
-        //// Position vars are named x, y so they are used by default
-        //vis_agent.setModel(Stock::Models::TEAPOT);
-        //vis_agent.setModelScale(ENV_DIM / 10.0f);
-        //vis_agent.setColor(ViridisInterpolation("location_y", 0, ENV_DIM));
-        //// Draw outline of environment boundary
-        //auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
-        //v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(0, ENV_DIM, 0);
-        //v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(ENV_DIM, 0, 0);
-        //v_boundary.addVertex(ENV_DIM, 0, 0); v_boundary.addVertex(ENV_DIM, ENV_DIM, 0);
-        //v_boundary.addVertex(0, ENV_DIM, 0); v_boundary.addVertex(ENV_DIM, ENV_DIM, 0);
+        auto & vis_agent = m_vis.addAgent("direction2d");
+        vis_agent.setXVariable("location_x");
+        vis_agent.setYVariable("location_y");
+        vis_agent.setForwardXVariable("velocity_x");
+        vis_agent.setForwardYVariable("velocity_y");
+        // Position vars are named x, y so they are used by default
+        vis_agent.setModel(Stock::Models::TEAPOT);
+        vis_agent.setModelScale(ENV_DIM / 10.0f);
+        vis_agent.setColor(ViridisInterpolation("location_y", 0, ENV_DIM));
+        // Draw outline of environment boundary
+        auto v_boundary = m_vis.newLineSketch(1.0f, 1.0f, 1.0f);
+        v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(0, ENV_DIM, 0);
+        v_boundary.addVertex(0, 0, 0); v_boundary.addVertex(ENV_DIM, 0, 0);
+        v_boundary.addVertex(ENV_DIM, 0, 0); v_boundary.addVertex(ENV_DIM, ENV_DIM, 0);
+        v_boundary.addVertex(0, ENV_DIM, 0); v_boundary.addVertex(ENV_DIM, ENV_DIM, 0);
     }
     {
         auto& vis_agent = m_vis.addAgent("direction3d");
         vis_agent.setXVariable("location_x");
         vis_agent.setYVariable("location_y");
         vis_agent.setZVariable("location_z");
-        vis_agent.setDirectionXVariable("velocity_x");
-        vis_agent.setDirectionYVariable("velocity_y");
-        vis_agent.setDirectionZVariable("velocity_z");
+        vis_agent.setForwardXVariable("velocity_x");
+        vis_agent.setForwardYVariable("velocity_y");
+        vis_agent.setForwardZVariable("velocity_z");
         // Position vars are named x, y, z so they are used by default
         vis_agent.setModel(Stock::Models::TEAPOT);
         vis_agent.setModelScale(ENV_DIM / 10.0f);
@@ -249,6 +250,7 @@ int main(int argc, const char ** argv) {
         v_boundary.addVertex(2 * ENV_DIM + ENV_GAP, 0, 0); v_boundary.addVertex(2 * ENV_DIM + ENV_GAP, ENV_DIM, 0);
         v_boundary.addVertex(2 * ENV_DIM + ENV_GAP, 0, ENV_DIM); v_boundary.addVertex(2 * ENV_DIM + ENV_GAP, ENV_DIM, ENV_DIM);
     }
+
     m_vis.activate();
 #else
 #error This example is a demonstration of visualisation capabilities, enable VISUALISATION in CMake to build it.

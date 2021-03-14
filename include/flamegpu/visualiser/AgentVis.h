@@ -6,10 +6,12 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
+#include <map>
 
 #include "flamegpu/visualiser/AgentStateVis.h"
 #include "config/AgentStateConfig.h"
 #include "config/Stock.h"
+#include "config/TexBufferConfig.h"
 
 struct Palette;
 struct AgentData;
@@ -27,6 +29,7 @@ class AutoPalette;
 class AgentVis {
     friend class ModelVis;
     friend class AgentStateVis;
+
  public:
     /**
      * @param agent The CUDAAgent this class is configuring the visualisation for
@@ -43,95 +46,126 @@ class AgentVis {
     AgentStateVis &State(const std::string &state_name);
 
     /**
-     * Set the name of the variable representing the agents x location
+     * Set the name of the variable representing the agents x/y/z location coordinates
      * @param var_name Name of the agent variable
-     * @note unnecessary if the variable is "x"
+     * @note unnecessary if the variables are named "x", "y", "z" respectively
      */
     void setXVariable(const std::string &var_name);
-    /**
-     * Set the name of the variable representing the agents y location
-     * @param var_name Name of the agent variable
-     * @note unnecessary if the variable is "y"
-     */
     void setYVariable(const std::string &var_name);
-    /**
-     * Set the name of the variable representing the agents z location
-     * @param var_name Name of the agent variable
-     * @note unnecessary if the variable is "z", or the model is 2D
-     */
     void setZVariable(const std::string &var_name);
     /**
-     * Set the name of the variable representing the agents x direction
+     * Set the name of the variable representing the agents x/y/z direction vector components
+     * Single axis rotation only requires x/z components
+     * Double axis rotation requires all 3 components
+     * Triple axis rotation requires all 3 components and additionally all 3 Up components
      * @param var_name Name of the agent variable
-     * @note unnecessary if the variable is "x"
      */
-    void setDirectionXVariable(const std::string& var_name);
+    void setForwardXVariable(const std::string& var_name);
+    void setForwardYVariable(const std::string& var_name);
+    void setForwardZVariable(const std::string& var_name);
     /**
-     * Set the name of the variable representing the agents y direction
+     * Set the name of the variable representing the agents x/y/z UP vector
+     * This should be 90 degrees perpendicular to the direction vector
      * @param var_name Name of the agent variable
-     * @note unnecessary if the variable is "y"
      */
-    void setDirectionYVariable(const std::string& var_name);
+    void setUpXVariable(const std::string& var_name);
+    void setUpYVariable(const std::string& var_name);
+    void setUpZVariable(const std::string& var_name);
     /**
-     * Set the name of the variable representing the agents z direction
+     * Set the name of the variable representing the agents yaw rotation angle (radians)
+     * This is an alternate to providing a direction vector, setting this will erase direction x/z if bound
+     *
      * @param var_name Name of the agent variable
-     * @note unnecessary if the variable is "z", or the model is 2D
+     * @note setRollVariable() can be used in place of the UP vector if preferred
      */
-    void setDirectionZVariable(const std::string& var_name);
+    void setYawVariable(const std::string& var_name);
     /**
-     * Clears the agent's x variable binding
-     * @see setXVariable(const std::string &)
+     * Set the name of the variable representing the agents pitch rotation angle (radians)
+     * This is an alternate to providing a direction vector, setting this will erase direction y if bound
+     *
+     * @param var_name Name of the agent variable
+     */
+    void setPitchVariable(const std::string& var_name);
+    /**
+     * Set the name of the variable representing the agents yaw rotation angle (radians)
+     * This is an alternate to providing an UP vector, setting this will erase up x/y/z if bound
+     *
+     * @param var_name Name of the agent variable
+     * @note setRollVariable() can be used in place of the UP vector if preferred
+     */
+    void setRollVariable(const std::string& var_name);
+    /**
+     * Clears the agent's x/y/z location variable bindings
+     * @see setXVariable(conCst std::string &)
+     * @see setYVariable(conCst std::string &)
+     * @see setZVariable(conCst std::string &)
      */
     void clearXVariable();
-    /**
-     * Clears the agent's y variable binding
-     * @see setYVariable(const std::string &)
-     */
     void clearYVariable();
-    /**
-     * Clears the agent's z variable binding
-     * @see setZVariable(const std::string &)
-     */
     void clearZVariable();
     /**
-     * Clears the agent's direction x variable binding
-     * @see setXVariable(const std::string &)
+     * Clears the agent's x/y/z direction variable bindings
+     * @see setForwardXVariable(const std::string &)
+     * @see setForwardYVariable(const std::string &)
+     * @see setForwardZVariable(const std::string &)
      */
-    void clearDirectionXVariable();
+    void clearForwardXVariable();
+    void clearForwardYVariable();
+    void clearForwardZVariable();
     /**
-     * Clears the agent's direction y variable binding
-     * @see setYVariable(const std::string &)
+     * Clears the agent's x/y/z UP variable bindings
+     * @see setUpXVariable(const std::string &)
+     * @see setUpYVariable(const std::string &)
+     * @see setUpZVariable(const std::string &)
      */
-    void clearDirectionYVariable();
+    void clearUpXVariable();
+    void clearUpYVariable();
+    void clearUpZVariable();
     /**
-     * Clears the agent's direction z variable binding
-     * @see setZVariable(const std::string &)
+     * Clears the agent's yaw angle variable bindings
+     * @see setYawVariable(const std::string &)
      */
-    void clearDirectionZVariable();
+    void clearYawVariable();
     /**
-     * Returns the variable used for the agent's location's x coordinate
+     * Clears the agent's pitch angle variable bindings
+     * @see setPitchVariable(const std::string &)
+     */
+    void clearPitchVariable();
+    /**
+     * Clears the agent's roll angle variable bindings
+     * @see setRollVariable(const std::string &)
+     */
+    void clearRollVariable();
+    /**
+     * Returns the variable used for the agent's x/y/z location coordinates
      */
     std::string getXVariable() const;
-    /**
-     * Returns the variable used for the agent's location's y coordinate
-     */
     std::string getYVariable() const;
-    /**
-     * Returns the variable used for the agent's location's z coordinate
-     */
     std::string getZVariable() const;
     /**
-     * Returns the variable used for the agent's direction's x coordinate
+     * Returns the variable used for the agent's x/y/z direction vector components
      */
-    std::string getDirectionXVariable() const;
+    std::string getForwardXVariable() const;
+    std::string getForwardYVariable() const;
+    std::string getForwardZVariable() const;
     /**
-     * Returns the variable used for the agent's direction's y coordinate
+     * Returns the variable used for the agent's x/y/z direction vector components
      */
-    std::string getDirectionYVariable() const;
+    std::string getUpXVariable() const;
+    std::string getUpYVariable() const;
+    std::string getUpZVariable() const;
     /**
-     * Returns the variable used for the agent's direction's z coordinate
+     * Returns the variable used for the agent's yaw angle
      */
-    std::string getDirectionZVariable() const;
+    std::string clearYawVariable() const;
+    /**
+     * Returns the variable used for the agent's pitch angle
+     */
+    std::string clearPitchVariable() const;
+    /**
+     * Returns the variable used for the agent's roll angle
+     */
+    std::string clearRollVariable() const;
 
     /**
      * Use a model from file
@@ -215,19 +249,10 @@ class AgentVis {
      */
     const AgentData &agentData;
     /**
-     * Names of the agent variables holding the agent's location
-     * @see setXVariable(const std::string &)
-     * @see setYVariable(const std::string &)
-     * @see setZVariable(const std::string &)
+     * Holds information on core agent-wide texture buffers
+     * e.g. location/direction
      */
-    std::string x_var, y_var, z_var;
-    /**
-     * Names of the agent variables holding the agent's direction
-     * @see setDirectionXVariable(const std::string &)
-     * @see setDirectionYVariable(const std::string &)
-     * @see setDirectionZVariable(const std::string &)
-     */
-    std::string dx_var, dy_var, dz_var;
+    std::map<TexBufferConfig::Function, TexBufferConfig> core_tex_buffers;
 };
 
 #endif  // VISUALISATION
