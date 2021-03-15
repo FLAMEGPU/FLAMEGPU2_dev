@@ -37,41 +37,8 @@ HostAPI::~HostAPI() {
     }
 }
 
-HostAgentAPI HostAPI::agent(const std::string &agent_name, const std::string &stateName) {
-    return HostAgentAPI(*this, agentModel.getAgent(agent_name), stateName);
-}
-
-HostNewAgentAPI HostAPI::newAgent(const std::string &agent_name) {
-    // Validation
-    auto &model = agentModel.getModelDescription();
-    auto agent = model.agents.find(agent_name);
-    if (agent == model.agents.end()) {
-        THROW InvalidAgentName("Agent '%s' was not found within the model hierarchy, "
-            "in HostAPI::newAgent()\n",
-            agent_name.c_str());
-    }
-    return newAgent(agent_name, agent->second->initial_state);
-}
-HostNewAgentAPI HostAPI::newAgent(const std::string &agent_name, const std::string &state) {
-    // Validation
-    auto &model = agentModel.getModelDescription();
-    auto agent = model.agents.find(agent_name);
-    if (agent == model.agents.end()) {
-        THROW InvalidAgentName("Agent '%s' was not found within the model hierarchy, "
-            "in HostAPI::newAgent()\n",
-            agent_name.c_str());
-    }
-    if (agent->second->states.find(state) == agent->second->states.end()) {
-        THROW InvalidStateName("Agent '%s' does not contain state '%s', "
-            "in HostAPI::newAgent()\n",
-            agent_name.c_str(), state.c_str());
-    }
-    // Create the agent in our backing data structure
-    NewAgentStorage t_agentData(agentOffsets.at(agent_name));
-    auto &s = agentData.at(agent_name).at(state);
-    s.push_back(t_agentData);
-    // Point the returned object to the created agent
-    return HostNewAgentAPI(s.back());
+HostAgentAPI HostAPI::agent(const std::string &agent_name, const std::string &state_name) {
+    return HostAgentAPI(*this, agentModel.getAgent(agent_name), state_name, agentOffsets.at(agent_name), agentData.at(agent_name).at(state_name));
 }
 
 bool HostAPI::tempStorageRequiresResize(const CUB_Config &cc, const unsigned int &items) {

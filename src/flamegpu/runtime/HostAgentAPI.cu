@@ -6,6 +6,19 @@ HostAgentAPI::~HostAgentAPI() {
         population.reset();
     }
 }
+
+HostNewAgentAPI HostAgentAPI::newAgent() {
+    // Create the agent in our backing data structure
+    NewAgentStorage t_agentData(agentOffsets);
+    newAgentData.emplace_back(NewAgentStorage(agentOffsets));
+    // Point the returned object to the created agent
+    return HostNewAgentAPI(newAgentData.back());
+}
+
+unsigned HostAgentAPI::count() {
+    return agent.getStateSize(stateName);
+}
+
 __global__ void initToThreadIndex(unsigned int *output, unsigned int threadCount) {
     const unsigned int TID = blockIdx.x * blockDim.x + threadIdx.x;
     if (TID < threadCount) {

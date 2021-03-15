@@ -57,13 +57,14 @@ __device__ __forceinline__ OutT funcName ## _impl::unary_function<InT, OutT>::op
 
 class HostAgentAPI {
  public:
-    HostAgentAPI(HostAPI &_api, AgentInterface &_agent, const std::string &_stateName)
+    HostAgentAPI(HostAPI &_api, AgentInterface &_agent, const std::string &_stateName, const VarOffsetStruct &_agentOffsets, HostAPI::AgentDataBuffer&_newAgentData)
         : api(_api)
         , agent(_agent)
         , hasState(true)
         , stateName(_stateName)
         , population(nullptr)
-    { }
+        , agentOffsets(_agentOffsets)
+        , newAgentData(_newAgentData) { }
 
     ~HostAgentAPI();
 
@@ -73,7 +74,16 @@ class HostAgentAPI {
         , hasState(other.hasState)
         , stateName(other.stateName)
         , population(nullptr)  // Never copy DeviceAgentVector
+        , agentOffsets(other.agentOffsets)
+        , newAgentData(other.newAgentData)
     { }
+    /**
+     * Creates a new agent in the current agent and returns an object for configuring it's member variables
+     * 
+     * This mode of agent creation is more efficient than manipulating the vector returned by getPopulationData(),
+     * as it batches agent creation to a single scatter kernel if possible (e.g. no data dependencies).
+     */
+    HostNewAgentAPI newAgent();
     /*
      * Returns the number of agents in this state
      */
@@ -240,11 +250,11 @@ class HostAgentAPI {
     bool hasState;
     const std::string stateName;
     std::unique_ptr<DeviceAgentVector_t> population;
+    // Holds offsets for accessing newAgentData
+    const VarOffsetStruct& agentOffsets;
+    // Compact data store for efficient host agent creation
+    HostAPI::AgentDataBuffer& newAgentData;
 };
-
-inline unsigned HostAgentAPI::count() {
-    return agent.getStateSize(stateName);
-}
 
 //
 // Implementation

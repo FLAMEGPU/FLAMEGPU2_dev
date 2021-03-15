@@ -56,22 +56,6 @@ class HostAPI {
      */
     HostAgentAPI agent(const std::string &agent_name, const std::string &stateName = ModelData::DEFAULT_STATE);
     /**
-     * Creates a new agent of the named type and returns an object for configuring it's member variables
-     * The agent is created in their initial state as defined in model description hierarchy
-     * @param agent_name Name of the agent type to be created
-     * @throws InvalidAgentName If an agent with the provided name does not exist withint he model description hierarchy
-     */
-    HostNewAgentAPI newAgent(const std::string &agent_name);
-    /**
-     * Creates a new agent of the named type and returns an object for configuring it's member variables
-     * The agent is created in their initial state as defined in model description hierarchy
-     * @param agent_name Name of the agent type to be created
-     * @param state Name of the state the agent should be created in
-     * @throws InvalidAgentName If an agent with the provided name does not exist withint he model description hierarchy
-     * @throws InvalidStateName If state name does not apply to named agent
-     */
-    HostNewAgentAPI newAgent(const std::string &agent_name, const std::string &state);
-    /**
      * Host API access to seeded random number generation
      */
     const HostRandom random;
